@@ -708,7 +708,7 @@ struct engineSetting : public argumentSetting {
     string str=optarg;
     
     if(str == "latex" || str == "pdflatex" || str == "xelatex" ||
-       str == "tex" || str == "pdftex" || str == "luatex" ||
+       str == "tex" || str == "pdftex" || str == "encpdftex" || str == "luatex" ||
        str == "lualatex" || str == "context" || str == "none") {
       value=str;
       return true;
@@ -1473,7 +1473,7 @@ bool context(const string& texengine)
 
 bool pdf(const string& texengine)
 {
-  return texengine == "pdflatex" || texengine == "pdftex" || xe(texengine) ||
+  return texengine == "pdflatex" || texengine == "pdftex" || texengine == "encpdftex" || xe(texengine) ||
     texengine == "luatex" || texengine == "lualatex" || context(texengine);
 }
 
