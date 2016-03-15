@@ -1,0 +1,115 @@
+#!/bin/bash
+
+#----------------------------------------------------------------------------------------------------
+
+outDir="/mnt/artax/WWW/data/pages/en/prog/"
+mediaDir="/mnt/artax/WWW/data/media/en/prog/asyroot_documentation"
+
+#----------------------------------------------------------------------------------------------------
+
+function NewFile()
+{
+	outFile="${outDir}/$1"
+	echo "" > "$outFile"
+}
+
+#----------------------------------------------------------------------------------------------------
+
+function AddText()
+{
+	echo "$1" >> "$outFile"
+}
+
+#----------------------------------------------------------------------------------------------------
+
+function AddExample()
+{
+	echo ">> AddExample: $1"
+
+	fullAsyFile="$1"
+	dir=${fullAsyFile%/*}
+	asyFile=${fullAsyFile##*/}
+	pdfFile=${asyFile/.asy/.pdf}
+	pngFile=${asyFile/.asy/.png}
+	logFile=${asyFile/.asy/.log}
+
+	cd "$dir" || return
+
+	# run asymptote
+	asy -f png "$asyFile" &> /dev/null
+	asy -f pdf "$asyFile" > "$logFile"
+
+	# copy to server
+	fullPngFile="${dir}_$pngFile"
+	fullPngFile=`echo $fullPngFile | tr '[A-Z]' '[a-z]'`
+	if [ -s "$pngFile" ]; then
+		cp "$pngFile" "$mediaDir/$fullPngFile"
+	fi
+	
+	fullPdfFile="${dir}_$pdfFile"
+	fullPdfFile=`echo $fullPdfFile | tr '[A-Z]' '[a-z]'`
+	if [ -s "$pdfFile" ]; then
+		cp "$pdfFile" "$mediaDir/$fullPdfFile"
+	fi
+	
+	(
+		echo "== $fullAsyFile =="
+		echo "Source code:"
+		echo "<code cpp>"
+		cat "$asyFile"
+		echo "</code>"
+		echo "Output:"
+		echo ""
+		if [ -s "$logFile" ]; then
+			echo "<code>"
+			cat "$logFile"
+			echo "</code>"
+		fi
+		if [ -s "$pngFile" ]; then
+			echo "{{en:prog:asyroot_documentation:$fullPngFile?300}}"
+		fi
+		if [ -s "$pdfFile" ]; then
+			echo "{{en:prog:asyroot_documentation:$fullPdfFile}}"
+		fi
+	) >> "$outFile"
+	
+	cd - > /dev/null
+}
+
+#----------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------
+
+NewFile "asy_root_interface.txt"
+AddText "===== Accessing ROOT objects from Asymptote ====="
+
+AddExample "root_interface/basic_manipulations.asy"
+AddExample "root_interface/method_calling.asy"
+AddExample "root_interface/loading_from_file.asy"
+AddExample "root_interface/quering_file_structure.asy"
+
+#----------------------------------------------------------------------------------------------------
+
+NewFile "asy_root_drawing.txt"
+AddText "===== Plotting ROOT objects ====="
+AddText "This is a documentation of macros from ''base/root.asy'' package."
+AddText ""
+AddText "The first example illustrates the way of plotting ROOT objects in Asymptote."
+
+AddExample "root_drawing/general.asy"
+AddText ""
+AddText "The following examples will show the draw options that are available for each supported ROOT type. For convenience, the [[en:prog:asy_pad_layout|pad_layout]] macro package will be used from now on."
+AddExample "root_drawing/TH1.asy"
+AddExample "root_drawing/TH2.asy"
+AddExample "root_drawing/TGraph.asy"
+#AddExample "root_drawing/TGraph2D.asy"
+AddExample "root_drawing/TF1.asy"
+
+#----------------------------------------------------------------------------------------------------
+
+NewFile "asy_pad_layout.txt"
+AddText "===== Arranging plots into a layout ====="
+
+AddExample "pad_layout/layout.asy"
+AddExample "pad_layout/markers.asy"
+AddExample "pad_layout/legend.asy"
