@@ -18,6 +18,10 @@
 #include <typeinfo>
 #endif
 
+#ifdef HAVE_ROOT
+class rObject;
+#endif
+
 namespace vm {
 
 class item;
@@ -46,6 +50,10 @@ extern const item Default;
 
 class item : public gc {
 private:
+
+#ifdef HAVE_ROOT
+  friend class ::rObject;
+#endif
   
 #if !COMPACT
   const std::type_info *kind;

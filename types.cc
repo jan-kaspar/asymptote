@@ -28,6 +28,11 @@ void arrayDeleteHelper(vm::stack *Stack);
 #include "types.symbols.h"
 #endif
 
+#ifdef HAVE_ROOT
+	#include "root.h"
+	#include "runroot.h"
+#endif
+
 namespace types {
 
 /* Base types */
@@ -109,6 +114,14 @@ void ty::print(ostream& out) const
   FIELD(GetType,sym,name##Part);               \
   SIGFIELD(SetType,sym,name##Set);
 
+#define ROOT_EXEC(Type, name, func) \
+	if (id == name) { \
+		static signature oSig(signature::OPEN); \
+		static function fun(prim##Type(), &oSig); \
+		static trans::virtualFieldAccess a(rObject::func); \
+		static trans::varEntry ent(&fun, &a, 0, position()); \
+		return &ent; \
+	}
 
 ty *dimensionType() {
   return new function(primFile(),
@@ -166,6 +179,42 @@ trans::varEntry *primitiveTy::virtualField(symbol id, signature *sig)
       FILEFIELD(primBoolean,modeType,signedint,SYM(signedint));
       SIGFIELD(readType,SYM(read),readSet);
       break;
+
+#ifdef HAVE_ROOT
+	case ty_rObject:
+	  FIELD(primBoolean, SYM(valid), rObjectValid)
+
+      ROOT_EXEC(Void, SYM(vExec), vExec);
+      ROOT_EXEC(Boolean, SYM(bExec), bExec);
+      ROOT_EXEC(Int, SYM(iExec), iExec);
+      ROOT_EXEC(Real, SYM(rExec), rExec);
+      ROOT_EXEC(String, SYM(sExec), sExec);
+      ROOT_EXEC(RObject, SYM(oExec), oExec);
+
+	  static function iff(primBoolean(), formal(primString(), SYM(class)));
+      if (id == SYM(InheritsFrom) && equivalent(sig, iff.getSignature())) {
+        static trans::virtualFieldAccess a(run::rObject_InheritsFrom);
+        static trans::varEntry v(&iff, &a, 0, position());
+        return &v;
+      }
+
+	  static function pf(primVoid());
+      if (id == SYM(Print) && equivalent(sig, pf.getSignature())) {
+        static trans::virtualFieldAccess a(run::rObject_Print);
+        static trans::varEntry v(&pf, &a, 0, position());
+        return &v;
+      }
+
+	  static function cf(primRObject());
+      if (id == SYM(Copy) && equivalent(sig, cf.getSignature())) {
+        static trans::virtualFieldAccess a(run::rObject_Copy);
+        static trans::varEntry v(&cf, &a, 0, position());
+        return &v;
+      }
+	
+      break;
+#endif
+
     default:
       break;
   }
@@ -194,6 +243,14 @@ ty *ty::virtualFieldGetType(symbol id)
 
 ty *primitiveTy::virtualFieldGetType(symbol id)
 {
+#ifdef HAVE_ROOT
+  if (kind == ty_rObject) {
+    if (id == SYM(InheritsFrom)) return new function(primBoolean(), formal(primString(), SYM(class)));
+    if (id == SYM(Print)) return new function(primVoid());
+    if (id == SYM(Copy)) return new function(primRObject());
+  }
+#endif
+
   if(kind == ty_file) {
     if (id == SYM(dimension))
       return overloadedDimensionType();

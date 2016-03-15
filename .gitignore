@@ -102,6 +102,7 @@ GUI/*.pyc
 *.obj
 *.dat
 *.pdb1
+*.swp
 
 ### Debugging files
 core.*

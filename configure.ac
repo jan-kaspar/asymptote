@@ -355,6 +355,30 @@ AC_DEFUN([ac_FUNC_STRPTIME], [
     AC_CHECK_FUNCS(strptime)
 ])
 
+# ROOT interface extension
+AC_SUBST(FILES_EXTRA)
+AC_SUBST(RUNTIME_FILES_EXTRA)
+AC_ARG_WITH([root],
+	[AS_HELP_STRING([--with-root], [an interface to ROOT files and objects @<:@default=check@:>@])],
+	[with_root="$withval"],
+	[with_root="$ROOTSYS"])
+
+if test "x$with_root" != "xno"
+then
+	if test "x$with_root" == "xyes"; then
+		with_root="$ROOTSYS"
+	fi
+	root_config="$with_root/bin/root-config"
+	AC_CHECK_FILE([$root_config],
+		[AC_DEFINE([HAVE_ROOT], [1], [if ROOT was found])
+			INCL="$INCL -I`$root_config --incdir`"
+			LIBS="$LIBS `$root_config --libs`"]
+			FILES_EXTRA="root"
+			RUNTIME_FILES_EXTRA="runroot"
+			OPTIONS=$OPTIONS"-DCOMPACT=0 ",
+		[AC_MSG_ERROR([ROOT not found, interface disabled])])
+fi
+
 # Checks for library functions.
 AC_FUNC_FORK
 AC_CHECK_FUNCS([dup2 floor memset pow sqrt strchr tgamma memrchr])

@@ -42,6 +42,11 @@
 #include "builtin.symbols.h"
 #endif
 
+#ifdef HAVE_ROOT
+	#include "root.h"
+	#include "runroot.h"
+#endif
+  
 namespace vm {
   // Defined in stack.cc
   extern vm::frame *make_dummyframe(string name);
@@ -78,6 +83,11 @@ void gen_runpath_venv(venv &ve);
 void gen_runpath3d_venv(venv &ve);
 void gen_runmath_venv(venv &ve);
 void gen_rungsl_venv(venv &ve);
+
+#ifdef HAVE_ROOT
+	void gen_runroot_venv(venv &ve);
+#endif
+
 
 void addType(tenv &te, symbol name, ty *t)
 {
@@ -880,6 +890,11 @@ void base_venv(venv &ve)
 
   addVariable<pen>(ve, &processData().currentpen, primPen(), SYM(currentpen));
 
+#ifdef HAVE_ROOT
+  addVariable<rObject>(ve, &robj, primRObject(), SYM(robj));
+  addInitializer(ve, primRObject(), nullRObject);
+#endif
+
 #ifdef OPENFUNCEXAMPLE
   addOpenFunc(ve, openFunc, primInt(), SYM(openFunc));
 #endif
@@ -900,6 +915,10 @@ void base_venv(venv &ve)
   gen_runpath_venv(ve);
   gen_runpath3d_venv(ve);
   gen_runmath_venv(ve);
+
+#ifdef HAVE_ROOT
+	gen_runroot_venv(ve);
+#endif
   
 #ifdef HAVE_LIBGSL
   gen_rungsl_venv(ve);
