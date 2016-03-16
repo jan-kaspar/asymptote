@@ -27,6 +27,7 @@ using namespace mem;
 //#define ROOT_DEBUG 1
 
 
+//----------------------------------------------------------------------------------------------------
 
 void RootError(string msg, bool stop = true)
 {
@@ -82,11 +83,13 @@ TFile* RootFileCollection::Get(const string file, bool errorIfNotExisting)
 	// first, check whether the file is already opened
 	TFile *f = NULL;
 	for (unsigned int i = 0; i < size(); ++i)
+	{
 		if (!file.compare(at(i)->GetName()))
 		{
 			f = at(i);
 			break;
 		}
+	}
 	
 	// if not opened, open it now
 	if (!f)
@@ -324,8 +327,9 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 			obj->obj = NULL;
 			// get from collection
 			if (isNameIndex[i - 1])
+			{
 				obj->obj = list->At(atoi(names[i].c_str()));
-			else {
+			} else {
 				TIter next(list);
 				while (TObject *iobj = next())
 					if (!names[i].compare(iobj->GetName()))
@@ -483,7 +487,8 @@ G__value rObject::Exec(vm::stack *Stack)
 
 	// get parameters
 	item it = Stack->pop();
-	if (it.type() != typeid(array)) {
+	if (it.type() != typeid(array))
+	{
 		RootError("rObject::Exec > Top stack item is not array.");
 		return G__null;
 	}
@@ -492,7 +497,8 @@ G__value rObject::Exec(vm::stack *Stack)
 	// check number of parameters, there must be at least the method name
 	G__param parameters;
 	parameters.paran = pars.size() - 1;
-	if (parameters.paran < 0) {
+	if (parameters.paran < 0)
+	{
 		RootError("rObject::Exec > you must give at least one parameter - method name.");
 		return G__null;
 	}
@@ -503,7 +509,8 @@ G__value rObject::Exec(vm::stack *Stack)
 	{
 		const item &it = pars[i + 1];
 
-		if (signature.size()) signature = signature + ", ";
+		if (signature.size())
+			signature = signature + ", ";
 
 		// standard values
 		parameters.para[i].ref = 0;
