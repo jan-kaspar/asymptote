@@ -891,8 +891,8 @@ void base_venv(venv &ve)
   addVariable<pen>(ve, &processData().currentpen, primPen(), SYM(currentpen));
 
 #ifdef HAVE_ROOT
-  addVariable<rObject>(ve, &robj, primRObject(), SYM(robj));
-  addInitializer(ve, primRObject(), nullRObject);
+  addVariable<RootObject>(ve, &robj, primRootObject(), SYM(robj));
+  addInitializer(ve, primRootObject(), nullRootObject);
 #endif
 
 #ifdef OPENFUNCEXAMPLE

@@ -48,9 +48,9 @@ void RootError(string msg, bool stop = true)
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
 
-RootFileCollection rObject::files;
-string rObject::lastMethod;
-rObject robj;
+RootFileCollection RootObject::files;
+string RootObject::lastMethod;
+RootObject robj;
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
@@ -101,13 +101,13 @@ TFile* RootFileCollection::Get(const string file, bool errorIfNotExisting)
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
 
-rObject::rObject(TObject *o) : obj(o), releaseObj(false)
+RootObject::RootObject(TObject *o) : obj(o), releaseObj(false)
 {
 }
 
 //----------------------------------------------------------------------------------------------------
 
-rObject::rObject(const rObject &copy)
+RootObject::RootObject(const RootObject &copy)
 {
 	obj = copy.obj;
 	releaseObj = false;
@@ -115,7 +115,7 @@ rObject::rObject(const rObject &copy)
 
 //----------------------------------------------------------------------------------------------------
 
-rObject::~rObject()
+RootObject::~RootObject()
 {
 	if (releaseObj)
 		delete obj;
@@ -123,27 +123,27 @@ rObject::~rObject()
 
 //----------------------------------------------------------------------------------------------------
 
-rObject* rObject::Copy()
+RootObject* RootObject::Copy()
 {
 	if (!obj)
-		RootError("rObject::Copy > Object points to NULL.", true);
+		RootError("RootObject::Copy > Object points to NULL.", true);
 
 	TObject *o = obj->Clone();
-	rObject *ro = new rObject(o);
+	RootObject *ro = new RootObject(o);
 	ro->releaseObj = true;
 	return ro;
 }
 
 //----------------------------------------------------------------------------------------------------
 
-bool rObject::IsValid()
+bool RootObject::IsValid()
 {
 	return (obj != NULL);
 }
 
 //----------------------------------------------------------------------------------------------------
 
-TObject* rObject::GetFromFileSafe(TFile *f, const string &path, bool errorIfNotExisting)
+TObject* RootObject::GetFromFileSafe(TFile *f, const string &path, bool errorIfNotExisting)
 {
 	// the normal way
 	TObject *o = f->Get(path.c_str());
@@ -151,7 +151,7 @@ TObject* rObject::GetFromFileSafe(TFile *f, const string &path, bool errorIfNotE
 		return o;
 
 	// avoid ROOT bugs, load directories one by one
-	//printf(">> rObject::GetFromFileSafe(%p, %s) > Trying to load directories one by one.\n", f, path.c_str());
+	//printf(">> RootObject::GetFromFileSafe(%p, %s) > Trying to load directories one by one.\n", f, path.c_str());
 
 	TDirectory *d = f;
 	size_t idx_s = 0;
@@ -167,7 +167,7 @@ TObject* rObject::GetFromFileSafe(TFile *f, const string &path, bool errorIfNotE
 		if (!o)
 		{
 			if (errorIfNotExisting)
-				RootError("rObject::GetFromFileSafe > object `"+bit+"' does not exist.", false);
+				RootError("RootObject::GetFromFileSafe > object `"+bit+"' does not exist.", false);
 			return NULL;
 		}
 
@@ -176,7 +176,7 @@ TObject* rObject::GetFromFileSafe(TFile *f, const string &path, bool errorIfNotE
 			if (! o->InheritsFrom("TDirectory") )
 			{
 				if (errorIfNotExisting)
-					RootError("rObject::GetFromFileSafe > object `"+bit+"' is not a directory.", false);
+					RootError("RootObject::GetFromFileSafe > object `"+bit+"' is not a directory.", false);
 				return NULL;
 			}
 
@@ -193,10 +193,10 @@ TObject* rObject::GetFromFileSafe(TFile *f, const string &path, bool errorIfNotE
 
 //----------------------------------------------------------------------------------------------------
 
-rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting, bool searchInCollections)
+RootObject* RootObject::GetFromFile(string file, string name, bool errorIfNotExisting, bool searchInCollections)
 {
-	// create new (empty/invalid) instance of rObject
-	rObject *obj = new rObject();
+	// create new (empty/invalid) instance of RootObject
+	RootObject *obj = new RootObject();
 
 	// objects are owned by the file
 	obj->releaseObj = false;
@@ -239,7 +239,7 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 			{
 				if (errorIfNotExisting)
 				{
-					RootError("rObject::GetFromFile > No object `" + names[i] + "' in file `" + file + "'.", false);
+					RootError("RootObject::GetFromFile > No object `" + names[i] + "' in file `" + file + "'.", false);
 					printf("\n");
 
 					// determine the last existing directory
@@ -311,7 +311,7 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 				if (errorIfNotExisting)
 				{
 					// print items in the collection
-					RootError("rObject::GetFromFile > Object with " + string((isNameIndex[i - 1]) ? "index" : "name") + 
+					RootError("RootObject::GetFromFile > Object with " + string((isNameIndex[i - 1]) ? "index" : "name") + 
 						" '" + names[i] + "' not found in the collection.", false);
 					printf("    The collection (from `%s') contains only the following items (index, class, name):\n",
 						names[i-1].c_str());
@@ -348,7 +348,7 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 		if (!list)
 		{
 			if (errorIfNotExisting)
-				RootError("rObject::GetFromFile > Object `" + name + "' of type `" + obj->obj->IsA()->GetName() + 
+				RootError("RootObject::GetFromFile > Object `" + name + "' of type `" + obj->obj->IsA()->GetName() + 
 					"' is not a recognized collection type.");
 			obj->obj = NULL;
 			return obj;
@@ -361,7 +361,7 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 
 //----------------------------------------------------------------------------------------------------
 
-vm::array* rObject::GetListOf(string file, string baseDir, bool includeDirectories,
+vm::array* RootObject::GetListOf(string file, string baseDir, bool includeDirectories,
 		bool includeObjects)
 {
 	// get base directory
@@ -373,9 +373,9 @@ vm::array* rObject::GetListOf(string file, string baseDir, bool includeDirectori
 	} else {
 		TObject *o = GetFromFileSafe(f, baseDir);
 		if (!o)
-			RootError("rObject::GetListOfDirectories > No object with name `" + baseDir + "'.");
+			RootError("RootObject::GetListOfDirectories > No object with name `" + baseDir + "'.");
 		if (!o->InheritsFrom("TDirectory"))
-			RootError("rObject::GetListOfDirectories > Object `" + baseDir + "' is not a directory.");
+			RootError("RootObject::GetListOfDirectories > Object `" + baseDir + "' is not a directory.");
 		base = (TDirectory *) o;
 	}
 
@@ -397,9 +397,9 @@ vm::array* rObject::GetListOf(string file, string baseDir, bool includeDirectori
 
 //----------------------------------------------------------------------------------------------------
 
-void rObject::Print()
+void RootObject::Print()
 {
-	printf("rObject::Print > obj at %p\n", obj);
+	printf("RootObject::Print > obj at %p\n", obj);
 	if (!obj)
 		return;
 	printf("\tclass=`%s', name=`%s'\n", obj->IsA()->GetName(), obj->GetName());
@@ -407,17 +407,17 @@ void rObject::Print()
 
 //----------------------------------------------------------------------------------------------------
 
-void rObject::Write()
+void RootObject::Write()
 {
 	if (!obj)
-		printf("rObject @ NULL\n");
+		printf("RootObject @ NULL\n");
 	else
 		printf("%s `%s' @ %p\n", obj->IsA()->GetName(), obj->GetName(), obj);
 }
 
 //----------------------------------------------------------------------------------------------------
 
-bool rObject::InheritsFrom(const mem::string &className)
+bool RootObject::InheritsFrom(const mem::string &className)
 {
 	return obj->IsA()->InheritsFrom(className.c_str());
 }
@@ -426,14 +426,14 @@ bool rObject::InheritsFrom(const mem::string &className)
 
 #ifdef ROOT_5
 
-G__value rObject::Exec(vm::stack *Stack)
+G__value RootObject::Exec(vm::stack *Stack)
 {
 	using namespace vm;
 
 	// check obj validity
 	if (!obj)
 	{
-		RootError("rObject::Exec > rObject is invalid.");
+		RootError("RootObject::Exec > RootObject is invalid.");
 		return G__null;
 	}
 
@@ -441,7 +441,7 @@ G__value rObject::Exec(vm::stack *Stack)
 	item it = Stack->pop();
 	if (it.type() != typeid(array))
 	{
-		RootError("rObject::Exec > Top stack item is not array.");
+		RootError("RootObject::Exec > Top stack item is not array.");
 		return G__null;
 	}
 	const array &pars = get<array>(it);
@@ -451,7 +451,7 @@ G__value rObject::Exec(vm::stack *Stack)
 	parameters.paran = pars.size() - 1;
 	if (parameters.paran < 0)
 	{
-		RootError("rObject::Exec > you must give at least one parameter - method name.");
+		RootError("RootObject::Exec > you must give at least one parameter - method name.");
 		return G__null;
 	}
 
@@ -503,9 +503,9 @@ G__value rObject::Exec(vm::stack *Stack)
 			continue;
 		}
 		
-		if (it.type() == typeid(rObject))
+		if (it.type() == typeid(RootObject))
 		{
-			long l = (long) get<rObject>(it).obj;
+			long l = (long) get<RootObject>(it).obj;
 			parameters.para[i].type = 's';
 			parameters.para[i].obj.i = l;
 			signature += "TObject*";
@@ -517,7 +517,7 @@ G__value rObject::Exec(vm::stack *Stack)
 			vm::array *a = (array *) it.p;
 			if (a->size() != 1)
 			{
-				RootError("rObject::Exec > only arrays of size 1 are supported (as variables passed by reference).");
+				RootError("RootObject::Exec > only arrays of size 1 are supported (as variables passed by reference).");
 				continue;
 			}
 
@@ -541,18 +541,18 @@ G__value rObject::Exec(vm::stack *Stack)
 				continue;
 			}
 
-			RootError("rObject::Exec > arrays of type " + string(ai.type().name()) + " are not supported.");
+			RootError("RootObject::Exec > arrays of type " + string(ai.type().name()) + " are not supported.");
 			continue;
 		}
 
-		RootError("rObject::Exec > unsupported type: " + string(it.type().name()));
+		RootError("RootObject::Exec > unsupported type: " + string(it.type().name()));
 	}
 
 	// get method name
 	it = pars[0];
 	if (it.type() != typeid(mem::string))
 	{
-		RootError("rObject::Exec > first parameter must be a string (method name), you gave " + string(it.type().name()));
+		RootError("RootObject::Exec > first parameter must be a string (method name), you gave " + string(it.type().name()));
 		return G__null;
 	}
 	string method = get<string>(it);
@@ -576,7 +576,7 @@ G__value rObject::Exec(vm::stack *Stack)
 	G__MethodInfo mtInfo = clInfo->GetMethod(method.c_str(), &parameters, &offset);
 	if (!mtInfo.Handle())
 	{
-		RootError("rObject::Exec > no " + lastMethod + " method found.");
+		RootError("RootObject::Exec > no " + lastMethod + " method found.");
 		return G__null;
 	}
 	
@@ -598,7 +598,7 @@ G__value rObject::Exec(vm::stack *Stack)
 
 #ifdef ROOT_5
 
-void rObject::PrintG__valueInfo(const G__value &v)
+void RootObject::PrintG__valueInfo(const G__value &v)
 {
 	char typeStr[2];
 	typeStr[0] = v.type; typeStr[1] = 0;
@@ -628,14 +628,14 @@ void rObject::PrintG__valueInfo(const G__value &v)
 
 #ifdef ROOT_6
 
-int rObject::Exec(vm::stack *Stack, void *result)
+int RootObject::Exec(vm::stack *Stack, void *result)
 {
 	using namespace vm;
 
 	// check obj validity
 	if (!obj)
 	{
-		RootError("rObject::Exec > rObject is invalid.");
+		RootError("RootObject::Exec > RootObject is invalid.");
 		return 1;
 	}
 
@@ -643,7 +643,7 @@ int rObject::Exec(vm::stack *Stack, void *result)
 	item it = Stack->pop();
 	if (it.type() != typeid(array))
 	{
-		RootError("rObject::Exec > Top stack item is not array.");
+		RootError("RootObject::Exec > Top stack item is not array.");
 		return 2;
 	}
 	const array &pars = get<array>(it);
@@ -651,7 +651,7 @@ int rObject::Exec(vm::stack *Stack, void *result)
 	// check number of parameters, there must be at least the method name
 	if (pars.size() < 1)
 	{
-		RootError("rObject::Exec > you must give at least one parameter - method name.");
+		RootError("RootObject::Exec > you must give at least one parameter - method name.");
 		return 3;
 	}
 
@@ -698,7 +698,7 @@ int rObject::Exec(vm::stack *Stack, void *result)
 			continue;
 		}
 		
-		if (it.type() == typeid(rObject))
+		if (it.type() == typeid(RootObject))
 		{
 			parameters.push_back((void *) it.p);
 			signature += obj->IsA()->GetName();
@@ -711,7 +711,7 @@ int rObject::Exec(vm::stack *Stack, void *result)
 			vm::array *a = (array *) it.p;
 			if (a->size() != 1)
 			{
-				RootError("rObject::Exec > only arrays of size 1 are supported (as variables passed by reference).");
+				RootError("RootObject::Exec > only arrays of size 1 are supported (as variables passed by reference).");
 				continue;
 			}
 
@@ -731,18 +731,18 @@ int rObject::Exec(vm::stack *Stack, void *result)
 				continue;
 			}
 
-			RootError("rObject::Exec > arrays of type " + string(ai.type().name()) + " are not supported.");
+			RootError("RootObject::Exec > arrays of type " + string(ai.type().name()) + " are not supported.");
 			continue;
 		}
 
-		RootError("rObject::Exec > unsupported type: " + string(it.type().name()));
+		RootError("RootObject::Exec > unsupported type: " + string(it.type().name()));
 	}
 
 	// get method name
 	it = pars[0];
 	if (it.type() != typeid(mem::string))
 	{
-		RootError("rObject::Exec > first parameter must be a string (method name), you gave " + string(it.type().name()));
+		RootError("RootObject::Exec > first parameter must be a string (method name), you gave " + string(it.type().name()));
 		return 4;
 	}
 	string method = get<string>(it);
@@ -758,7 +758,7 @@ int rObject::Exec(vm::stack *Stack, void *result)
 
 	if (! gInterpreter->CallFunc_IsValid(callFunc) )
 	{
-		RootError("rObject::Exec > no " + lastMethod + " method found.");
+		RootError("RootObject::Exec > no " + lastMethod + " method found.");
 		return 5;
 	}
  

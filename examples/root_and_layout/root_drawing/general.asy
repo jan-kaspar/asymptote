@@ -3,11 +3,11 @@ import root;
 size(6cm, 6cm, false);
 
 // ROOT objects are drawn by
-// void draw(transform tr = identity(), picture pic=currentpicture, rObject obj, string options="", pen pen=currentpen, 
+// void draw(transform tr = identity(), picture pic=currentpicture, RootObject obj, string options="", pen pen=currentpen, 
 //	marker marker=nomarker, Label legend="")
 
-draw(rGetObj("../example.root", "hist"), "", blue);
-draw(rGetObj("../example.root", "hist|gaus"), "", red+1pt);
+draw(RootGetObject("../example.root", "hist"), "", blue);
+draw(RootGetObject("../example.root", "hist|gaus"), "", red+1pt);
 
 // ROOT objects can be transformed while drawn
 draw(shift(0, 40)*yscale(-1), robj, heavygreen+dashed);

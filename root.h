@@ -53,7 +53,7 @@ class RootFileCollection : public std::vector<TFile *>
 /**
  *\brief Asymptote wrapper for ROOT objects.
  **/
-class rObject : public gc
+class RootObject : public gc
 {
 	protected:
 		/// pointer to the ROOT object
@@ -67,26 +67,26 @@ class rObject : public gc
 
 	public:
 		/// default constructor
-		rObject(TObject *o = NULL);
+		RootObject(TObject *o = NULL);
 
 		/// copy constructor
 		/// performs a shallow copy - only the pointer is copied
-		rObject(const rObject&);
+		RootObject(const RootObject&);
 
 		/// destructor
 		/// releases the 'obj', if needed
-		~rObject();
+		~RootObject();
 
 		/// returns a deep copy
 		/// the ROOT object is copied and the new pointer is returned, the only case when
 		/// releaseObj is set to true
-		rObject* Copy();
+		RootObject* Copy();
 
 		/// loads an object from a ROOT file
-		///\param errorIfNotExisting if error shall be raised if the object doesn't exist (it returns "empty" rObject otherwise)
+		///\param errorIfNotExisting if error shall be raised if the object doesn't exist (it returns "empty" RootObject otherwise)
 		///\param searchInCollections whether to search in collection
 		///			(turn off if you have ROOT object the name of which contain the special characters)
-		static rObject* GetFromFile(mem::string file, mem::string name, bool errorIfNotExisting = true, bool searchInCollections = true);
+		static RootObject* GetFromFile(mem::string file, mem::string name, bool errorIfNotExisting = true, bool searchInCollections = true);
 
 		/// a wrapper for TFile::Get to overcome certain bug(s) in ROOT
 		static TObject* GetFromFileSafe(TFile *f, const string &obj, bool errorIfNotExisting = true);
@@ -113,25 +113,25 @@ class rObject : public gc
 
 		static void vExec(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(vExecHelper), callee));
 		}
 
 		static void vExecHelper(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			callee->Exec(Stack);
 		}
 
 		#define EXEC_DEF(prefix, Type, typeCode, typeName, unionMember, defaultValue) \
 		static void prefix##Exec(vm::stack *Stack) \
 		{ \
-			rObject *callee = vm::pop<rObject *>(Stack); \
+			RootObject *callee = vm::pop<RootObject *>(Stack); \
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(prefix##ExecHelper), callee)); \
 		} \
 		static void prefix##ExecHelper(vm::stack *Stack) \
 		{ \
-			rObject *callee = vm::pop<rObject *>(Stack); \
+			RootObject *callee = vm::pop<RootObject *>(Stack); \
 			G__value ret = callee->Exec(Stack); \
 			if (ret.type == typeCode) \
 			{ \
@@ -139,7 +139,7 @@ class rObject : public gc
 				return; \
 			} \
 			em.error(vm::getPos()); \
-			em << "ERROR in rObject::" #prefix "ExecHelper > method `" << lastMethod << "' returned value which is not " typeName "."; \
+			em << "ERROR in RootObject::" #prefix "ExecHelper > method `" << lastMethod << "' returned value which is not " typeName "."; \
 			PrintG__valueInfo(ret); \
 			Stack->push<Type>(defaultValue); \
 		} 
@@ -150,13 +150,13 @@ class rObject : public gc
 
 		static void sExec(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(sExecHelper), callee));
 		}
 
 		static void sExecHelper(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			G__value ret = callee->Exec(Stack);
 			if (ret.type == 'C')
 			{
@@ -164,7 +164,7 @@ class rObject : public gc
 				return;
 			}
 			em.error(vm::getPos());
-			em << "ERROR in rObject::sExecHelper > method `" << lastMethod << "' returned value which is not a string.";
+			em << "ERROR in RootObject::sExecHelper > method `" << lastMethod << "' returned value which is not a string.";
 			PrintG__valueInfo(ret);
 			Stack->push<mem::string>("");
 		} 
@@ -172,13 +172,13 @@ class rObject : public gc
 
 		static void oExec(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(oExecHelper), callee));
 		}
 
 		static void oExecHelper(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			G__value ret = callee->Exec(Stack);
 
 			//printf(">> oExecHelper: type = %i\n", ret.type);
@@ -186,14 +186,14 @@ class rObject : public gc
 
 			if (ret.type == 'U')
 			{
-				Stack->push<rObject *>( new rObject((TObject *) ret.obj.i) );
+				Stack->push<RootObject *>( new RootObject((TObject *) ret.obj.i) );
 				return;
 			}
 
 			em.error(vm::getPos());
-			em << "ERROR in rObject::sExecHelper > method `" << lastMethod << "' returned value which is not a TObject.";
+			em << "ERROR in RootObject::sExecHelper > method `" << lastMethod << "' returned value which is not a TObject.";
 			PrintG__valueInfo(ret);
-			Stack->push<rObject *>(new rObject());
+			Stack->push<RootObject *>(new RootObject());
 		} 
 
 		#undef EXEC_DEF
@@ -204,25 +204,25 @@ class rObject : public gc
 
 		static void vExec(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(vExecHelper), callee)); \
 		}
 
 		static void vExecHelper(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			callee->Exec(Stack, NULL);
 		}
 
 		#define EXEC_DEF(prefix, Type, defaultValue) \
 		static void prefix##Exec(vm::stack *Stack) \
 		{ \
-			rObject *callee = vm::pop<rObject *>(Stack); \
+			RootObject *callee = vm::pop<RootObject *>(Stack); \
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(prefix##ExecHelper), callee)); \
 		} \
 		static void prefix##ExecHelper(vm::stack *Stack) \
 		{ \
-			rObject *callee = vm::pop<rObject *>(Stack); \
+			RootObject *callee = vm::pop<RootObject *>(Stack); \
 			Type ret = defaultValue; \
 			callee->Exec(Stack, (void *) &ret); \
 			Stack->push<Type>(ret); \
@@ -234,13 +234,13 @@ class rObject : public gc
 
 		static void sExec(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(sExecHelper), callee));
 		}
 
 		static void sExecHelper(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			char *ret = NULL;
 			callee->Exec(Stack, (void *) &ret);
 			Stack->push<mem::string>((const char *) ret);
@@ -248,16 +248,16 @@ class rObject : public gc
 
 		static void oExec(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(oExecHelper), callee));
 		}
 
 		static void oExecHelper(vm::stack *Stack)
 		{
-			rObject *callee = vm::pop<rObject *>(Stack);
+			RootObject *callee = vm::pop<RootObject *>(Stack);
 			TObject *ret = NULL;
 			callee->Exec(Stack, (void *) &ret);
-			Stack->push<rObject *>( new rObject((TObject *) ret) );
+			Stack->push<RootObject *>( new RootObject((TObject *) ret) );
 		} 
 
 		#undef EXEC_DEF
@@ -275,6 +275,6 @@ class rObject : public gc
 
 
 /// reference to last loaded (by GetFromFile) object
-extern rObject robj;
+extern RootObject robj;
 
 #endif

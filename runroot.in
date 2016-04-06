@@ -17,7 +17,7 @@
 
 
 
-rObject* => primRObject()
+RootObject* => primRootObject()
 stringarray* => stringArray()
 
 #include "callable.h"
@@ -32,76 +32,76 @@ using types::stringArray;
 using namespace vm;
 
 
-rObject* :nullRObject()
+RootObject* :nullRootObject()
 {
-	return new rObject();
+	return new RootObject();
 }
 
-rObject* :rObject_Copy_helper(rObject *o)
+RootObject* :RootObject_Copy_helper(RootObject *o)
 {
 	return o->Copy();
 }
 
-callable* :rObject_Copy(rObject *o)
+callable* :RootObject_Copy(RootObject *o)
 {
-	return new thunk(new bfunc(rObject_Copy_helper), o);
+	return new thunk(new bfunc(RootObject_Copy_helper), o);
 }
 
-rObject *rGetObj(string file, string name, bool error=true, bool search=true)
+RootObject *RootGetObject(string file, string name, bool error=true, bool search=true)
 {
 	//printf("ASY_FILE:%s\n", file.c_str());
-	return rObject::GetFromFile(file, name, error, search);
+	return RootObject::GetFromFile(file, name, error, search);
 }
 
-bool rObjectValid:rObjectValid(rObject *o)
+bool RootObjectValid:RootObjectValid(RootObject *o)
 {
 	return o->IsValid();
 }
 
-void :rObject_Print_helper(rObject *o)
+void :RootObject_Print_helper(RootObject *o)
 {
 	o->Print();
 }
 
-callable* :rObject_Print(rObject *o)
+callable* :RootObject_Print(RootObject *o)
 {
-	return new thunk(new bfunc(rObject_Print_helper), o);
+	return new thunk(new bfunc(RootObject_Print_helper), o);
 }
 
-void write(rObject *o)
+void write(RootObject *o)
 {
 	o->Write();
 }
 
-void write(string str, rObject *o)
+void write(string str, RootObject *o)
 {
 	printf("%s", str.c_str());
 	o->Write();
 }
 
-bool :rObject_InheritsFrom_helper(string className, rObject *o)
+bool :RootObject_InheritsFrom_helper(string className, RootObject *o)
 {
 	return o->InheritsFrom(className);
 }
 
-callable* :rObject_InheritsFrom(rObject *o)
+callable* :RootObject_InheritsFrom(RootObject *o)
 {
-	return new thunk(new bfunc(rObject_InheritsFrom_helper), o);
+	return new thunk(new bfunc(RootObject_InheritsFrom_helper), o);
 }
 
-stringarray *rGetListOfDirectories(string file, string baseDir)
+stringarray *RootGetListOfDirectories(string file, string baseDir)
 {
-	return rObject::GetListOf(file, baseDir, true, false);
+	return RootObject::GetListOf(file, baseDir, true, false);
 }
 
-stringarray *rGetListOfObjects(string file, string baseDir)
+stringarray *RootGetListOfObjects(string file, string baseDir)
 {
-	return rObject::GetListOf(file, baseDir, false, true);
+	return RootObject::GetListOf(file, baseDir, false, true);
 }
 
-stringarray *rGetListOfEntries(string file, string baseDir)
+stringarray *RootGetListOfEntries(string file, string baseDir)
 {
-	return rObject::GetListOf(file, baseDir, true, true);
+	return RootObject::GetListOf(file, baseDir, true, true);
 }
 
 // vim: ft=cpp

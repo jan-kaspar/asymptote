@@ -75,7 +75,7 @@ real TH1_y_def = -1.;
  *  - "lM"		adds the mean to the legend 
  *  - "lR"		adds the RMS to the legend 
  **/
-void drawTH1(transform tr, picture pic, rObject obj, string options, pen _pen, marker _marker, Label _legend)
+void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen, marker _marker, Label _legend)
 {
 	if (options == "def")
 		options = "vl,ec";
@@ -229,10 +229,10 @@ paletteticks TH2_paletteTicks = PaletteTicks;
 	// - "bar"	  add palette bar
 	// - "d0"     do not draw empty cells (content = 0)
  **/
-void drawTH2(transform tr, picture pic, rObject obj, string options, pen _pen, marker _marker, Label _legend)
+void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen, marker _marker, Label _legend)
 {
-	rObject xAx = obj.oExec("GetXaxis");
-	rObject yAx = obj.oExec("GetYaxis");
+	RootObject xAx = obj.oExec("GetXaxis");
+	RootObject yAx = obj.oExec("GetYaxis");
 
 	int Nx = obj.iExec("GetNbinsX");
 	int Ny = obj.iExec("GetNbinsY");
@@ -443,7 +443,7 @@ real TGraph_errorContourOpacity = 0.3;
  *	- "ec"		to draw error contour (to fill the +- 1sigma region around the actual curve)
  *  - "d0"		discard (skip) points with y = 0
  **/
-void drawTGraph(transform tr, picture pic, rObject obj, string options, pen _pen, marker _marker, Label _legend)
+void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _pen, marker _marker, Label _legend)
 {
 	if (options == "def")
 		options = "l";
@@ -619,7 +619,7 @@ real[] tgraph2DContourValues;
  * Recognized options are:
  *  - "cont" to draw contour lines (default option)
  **/
-void drawTGraph2D(transform tr, picture pic, rObject obj, string options, pen _pen, marker _marker, Label _legend)
+void drawTGraph2D(transform tr, picture pic, RootObject obj, string options, pen _pen, marker _marker, Label _legend)
 {
 	if (options == "def")
 		options = "cont";
@@ -669,7 +669,7 @@ void drawTGraph2D(transform tr, picture pic, rObject obj, string options, pen _p
 // TF1
 //----------------------------------------------------------------------------------------------------
 
-rObject TF1_obj;
+RootObject TF1_obj;
 
 real TF1_enumerator(real x)
 {
@@ -687,7 +687,7 @@ real TF1_x_max = +inf;
  *
  * Recognized options are:
  **/
-void drawTF1(transform tr, picture pic, rObject obj, string options, pen _pen, marker _marker, Label _legend)
+void drawTF1(transform tr, picture pic, RootObject obj, string options, pen _pen, marker _marker, Label _legend)
 {
 	TF1_obj = obj;
 
@@ -720,11 +720,11 @@ void drawTF1(transform tr, picture pic, rObject obj, string options, pen _pen, m
  *  - TGraph2D
  *  - TF1
  **/
-void draw(transform tr = identity(), picture pic=currentpicture, rObject obj, string options="def", pen pen=currentpen, 
+void draw(transform tr = identity(), picture pic=currentpicture, RootObject obj, string options="def", pen pen=currentpen, 
 	marker marker=nomarker, Label legend="")
 {
 	if (!obj.valid) {
-		write("ERROR in draw(..., rObject, ...) > Cannot draw invalid rObject.");
+		write("ERROR in draw(..., RootObject, ...) > Cannot draw invalid RootObject.");
 		return;
 	}
 
@@ -734,6 +734,6 @@ void draw(transform tr = identity(), picture pic=currentpicture, rObject obj, st
 	if (obj.InheritsFrom("TGraph2D")) { drawTGraph2D(tr, pic, obj, options, pen, marker, legend); return; }
 	if (obj.InheritsFrom("TF1")) { drawTF1(tr, pic, obj, options, pen, marker, legend); return; }
 
-	write("ERROR in draw(..., rObject, ...) > Cannot draw the following rObject.");
+	write("ERROR in draw(..., RootObject, ...) > Cannot draw the following RootObject.");
 	obj.Print();
 }

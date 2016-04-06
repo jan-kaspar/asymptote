@@ -118,7 +118,7 @@ void ty::print(ostream& out) const
 	if (id == name) { \
 		static signature oSig(signature::OPEN); \
 		static function fun(prim##Type(), &oSig); \
-		static trans::virtualFieldAccess a(rObject::func); \
+		static trans::virtualFieldAccess a(RootObject::func); \
 		static trans::varEntry ent(&fun, &a, 0, position()); \
 		return &ent; \
 	}
@@ -181,33 +181,33 @@ trans::varEntry *primitiveTy::virtualField(symbol id, signature *sig)
       break;
 
 #ifdef HAVE_ROOT
-	case ty_rObject:
-	  FIELD(primBoolean, SYM(valid), rObjectValid)
+	case ty_RootObject:
+	  FIELD(primBoolean, SYM(valid), RootObjectValid)
 
       ROOT_EXEC(Void, SYM(vExec), vExec);
       ROOT_EXEC(Boolean, SYM(bExec), bExec);
       ROOT_EXEC(Int, SYM(iExec), iExec);
       ROOT_EXEC(Real, SYM(rExec), rExec);
       ROOT_EXEC(String, SYM(sExec), sExec);
-      ROOT_EXEC(RObject, SYM(oExec), oExec);
+      ROOT_EXEC(RootObject, SYM(oExec), oExec);
 
 	  static function iff(primBoolean(), formal(primString(), SYM(class)));
       if (id == SYM(InheritsFrom) && equivalent(sig, iff.getSignature())) {
-        static trans::virtualFieldAccess a(run::rObject_InheritsFrom);
+        static trans::virtualFieldAccess a(run::RootObject_InheritsFrom);
         static trans::varEntry v(&iff, &a, 0, position());
         return &v;
       }
 
 	  static function pf(primVoid());
       if (id == SYM(Print) && equivalent(sig, pf.getSignature())) {
-        static trans::virtualFieldAccess a(run::rObject_Print);
+        static trans::virtualFieldAccess a(run::RootObject_Print);
         static trans::varEntry v(&pf, &a, 0, position());
         return &v;
       }
 
-	  static function cf(primRObject());
+	  static function cf(primRootObject());
       if (id == SYM(Copy) && equivalent(sig, cf.getSignature())) {
-        static trans::virtualFieldAccess a(run::rObject_Copy);
+        static trans::virtualFieldAccess a(run::RootObject_Copy);
         static trans::varEntry v(&cf, &a, 0, position());
         return &v;
       }
@@ -244,10 +244,10 @@ ty *ty::virtualFieldGetType(symbol id)
 ty *primitiveTy::virtualFieldGetType(symbol id)
 {
 #ifdef HAVE_ROOT
-  if (kind == ty_rObject) {
+  if (kind == ty_RootObject) {
     if (id == SYM(InheritsFrom)) return new function(primBoolean(), formal(primString(), SYM(class)));
     if (id == SYM(Print)) return new function(primVoid());
-    if (id == SYM(Copy)) return new function(primRObject());
+    if (id == SYM(Copy)) return new function(primRootObject());
   }
 #endif
 

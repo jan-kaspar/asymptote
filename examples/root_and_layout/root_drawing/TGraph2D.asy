@@ -4,4 +4,4 @@ import pad_layout;
 NewPad();
 
 // currently broken
-//draw(rGetObj("../example.root", "graph2"), red);
+//draw(RootGetObject("../example.root", "graph2"), red);

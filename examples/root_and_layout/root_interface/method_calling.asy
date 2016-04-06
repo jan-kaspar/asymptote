@@ -1,4 +1,4 @@
-rObject o = rGetObj("../example.root", "hist");
+RootObject o = RootGetObject("../example.root", "hist");
 
 // dump an object
 o.vExec("Dump");
@@ -18,7 +18,7 @@ write("name = ", o.sExec("GetName"));
 write("contents of the first bin = ", o.rExec("GetBinContent", 1));
 
 
-rObject o = rGetObj("../example.root", "graph");
+RootObject o = RootGetObject("../example.root", "graph");
 
 // passing parameters by reference
 // get the coordinates of the first point of a graph

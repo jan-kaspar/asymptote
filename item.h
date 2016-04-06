@@ -19,7 +19,7 @@
 #endif
 
 #ifdef HAVE_ROOT
-class rObject;
+class RootObject;
 #endif
 
 namespace vm {
@@ -52,7 +52,7 @@ class item : public gc {
 private:
 
 #ifdef HAVE_ROOT
-  friend class ::rObject;
+  friend class ::RootObject;
 #endif
   
 #if !COMPACT

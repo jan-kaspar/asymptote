@@ -41,5 +41,5 @@ PRIMITIVE(file,File,file)
 PRIMITIVE(code,Code,code)
 
 #ifdef HAVE_ROOT
-PRIMITIVE(rObject,RObject,rObject)
+PRIMITIVE(RootObject,RootObject,RootObject)
 #endif
