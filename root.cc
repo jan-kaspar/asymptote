@@ -6,6 +6,8 @@
 *
 ****************************************************************************/
 
+#include "root.h"
+
 #include <cstdio>
 
 #include "TClass.h"
@@ -15,10 +17,14 @@
 #include "TPad.h"
 #include "TKey.h"
 
-#include "Api.h"
+#ifdef ROOT_5
+	#include "Api.h"
+#endif
 
-#include "root.h"
-#include "array.h"
+#ifdef ROOT_6
+	#include "TInterpreter.h"
+#endif
+
 #include "errormsg.h"
 
 
@@ -57,9 +63,10 @@ RootFileCollection::RootFileCollection(unsigned int size) : std::vector<TFile *>
 
 RootFileCollection::~RootFileCollection()
 {
-	for (unsigned int i = 0; i < size(); ++i)
-		delete at(i);
-
+	// TODO: leads to seg fault with ROOT 6
+	//for (unsigned int i = 0; i < size(); ++i)
+	//.	delete at(i);
+	
 	clear();
 }
 
@@ -613,6 +620,153 @@ void rObject::PrintG__valueInfo(const G__value &v)
 		TObject *o = (TObject *) v.obj.i;
 		printf("\tTObject, class = %s, name = %s\n", o->IsA()->GetName(), o->GetName());
 	}
+}
+
+#endif
+
+//----------------------------------------------------------------------------------------------------
+
+#ifdef ROOT_6
+
+int rObject::Exec(vm::stack *Stack, void *result)
+{
+	using namespace vm;
+
+	// check obj validity
+	if (!obj)
+	{
+		RootError("rObject::Exec > rObject is invalid.");
+		return 1;
+	}
+
+	// get parameters
+	item it = Stack->pop();
+	if (it.type() != typeid(array))
+	{
+		RootError("rObject::Exec > Top stack item is not array.");
+		return 2;
+	}
+	const array &pars = get<array>(it);
+
+	// check number of parameters, there must be at least the method name
+	if (pars.size() < 1)
+	{
+		RootError("rObject::Exec > you must give at least one parameter - method name.");
+		return 3;
+	}
+
+	// get parameters and build signature
+	vector<void *> parameters;
+	string signature;
+	for (unsigned int i = 0; i < pars.size() - 1; i++)
+	{
+		const item &it = pars[i + 1];
+
+		if (signature.size())
+			signature = signature + ",";
+
+		if (it.type() == typeid(bool))
+		{
+			parameters.push_back((void *) &it.b);
+			signature += "bool";
+			continue;
+		}
+
+		if (it.type() == typeid(Int))
+		{
+			parameters.push_back((void *) &it.i);
+			signature += "int";
+			continue;
+		}
+
+		if (it.type() == typeid(double))
+		{
+			parameters.push_back((void *) &it.x);
+			signature += "double";
+			continue;
+		}
+
+		if (it.type() == typeid(mem::string))
+		{
+			// TODO: make it work
+			//auto t = get<mem::string>(it);
+			//printf("[%s]\n", t.c_str());
+
+			mem::string *str = (mem::string *) it.p;
+			parameters.push_back((void *) str->c_str());
+			signature += "const char*";
+			continue;
+		}
+		
+		if (it.type() == typeid(rObject))
+		{
+			parameters.push_back((void *) it.p);
+			signature += obj->IsA()->GetName();
+			signature += "*";
+			continue;
+		}
+
+		if (it.type() == typeid(vm::array))
+		{
+			vm::array *a = (array *) it.p;
+			if (a->size() != 1)
+			{
+				RootError("rObject::Exec > only arrays of size 1 are supported (as variables passed by reference).");
+				continue;
+			}
+
+			const item &ai = (*a)[0];
+
+			if (ai.type() == typeid(Int))
+			{
+				parameters.push_back((void *) &ai.i);
+				signature += "int&";
+				continue;
+			}
+
+			if (ai.type() == typeid(double))
+			{
+				parameters.push_back((void *) &ai.x);
+				signature += "double&";
+				continue;
+			}
+
+			RootError("rObject::Exec > arrays of type " + string(ai.type().name()) + " are not supported.");
+			continue;
+		}
+
+		RootError("rObject::Exec > unsupported type: " + string(it.type().name()));
+	}
+
+	// get method name
+	it = pars[0];
+	if (it.type() != typeid(mem::string))
+	{
+		RootError("rObject::Exec > first parameter must be a string (method name), you gave " + string(it.type().name()));
+		return 4;
+	}
+	string method = get<string>(it);
+	lastMethod = obj->IsA()->GetName();
+	lastMethod += "::" + method + "(" + signature + ")";
+
+	// run the method
+	ClassInfo_t* clInfo = obj->IsA()->GetClassInfo();
+	CallFunc_t* callFunc = gInterpreter->CallFunc_Factory();
+
+	Long_t offset;
+	gInterpreter->CallFunc_SetFuncProto(callFunc, clInfo, method.c_str(), signature.c_str(), &offset);
+
+	if (! gInterpreter->CallFunc_IsValid(callFunc) )
+	{
+		RootError("rObject::Exec > no " + lastMethod + " method found.");
+		return 5;
+	}
+ 
+	TInterpreter::CallFuncIFacePtr_t faceptr = gInterpreter->CallFunc_IFacePtr(callFunc);
+
+    faceptr.fGeneric(obj, parameters.size(), parameters.data(), result);
+
+	return 0;
 }
 
 #endif

@@ -108,6 +108,7 @@ class rObject : public gc
 
 		//---------------------- methods to call memeber functions ------------------
 		
+#ifdef ROOT_5
 		G__value Exec(vm::stack *Stack); 
 
 		static void vExec(vm::stack *Stack)
@@ -122,7 +123,6 @@ class rObject : public gc
 			callee->Exec(Stack);
 		}
 
-#ifdef ROOT_5
 		#define EXEC_DEF(prefix, Type, typeCode, typeName, unionMember, defaultValue) \
 		static void prefix##Exec(vm::stack *Stack) \
 		{ \
@@ -194,6 +194,70 @@ class rObject : public gc
 			em << "ERROR in rObject::sExecHelper > method `" << lastMethod << "' returned value which is not a TObject.";
 			PrintG__valueInfo(ret);
 			Stack->push<rObject *>(new rObject());
+		} 
+
+		#undef EXEC_DEF
+#endif
+
+#ifdef ROOT_6
+		int Exec(vm::stack *Stack, void *result);
+
+		static void vExec(vm::stack *Stack)
+		{
+			rObject *callee = vm::pop<rObject *>(Stack);
+			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(vExecHelper), callee)); \
+		}
+
+		static void vExecHelper(vm::stack *Stack)
+		{
+			rObject *callee = vm::pop<rObject *>(Stack);
+			callee->Exec(Stack, NULL);
+		}
+
+		#define EXEC_DEF(prefix, Type, defaultValue) \
+		static void prefix##Exec(vm::stack *Stack) \
+		{ \
+			rObject *callee = vm::pop<rObject *>(Stack); \
+			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(prefix##ExecHelper), callee)); \
+		} \
+		static void prefix##ExecHelper(vm::stack *Stack) \
+		{ \
+			rObject *callee = vm::pop<rObject *>(Stack); \
+			Type ret = defaultValue; \
+			callee->Exec(Stack, (void *) &ret); \
+			Stack->push<Type>(ret); \
+		}
+
+		EXEC_DEF(b, bool, false)
+		EXEC_DEF(i, Int, 0)
+		EXEC_DEF(r, double, 0.)
+
+		static void sExec(vm::stack *Stack)
+		{
+			rObject *callee = vm::pop<rObject *>(Stack);
+			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(sExecHelper), callee));
+		}
+
+		static void sExecHelper(vm::stack *Stack)
+		{
+			rObject *callee = vm::pop<rObject *>(Stack);
+			char *ret = NULL;
+			callee->Exec(Stack, (void *) &ret);
+			Stack->push<mem::string>((const char *) ret);
+		} 
+
+		static void oExec(vm::stack *Stack)
+		{
+			rObject *callee = vm::pop<rObject *>(Stack);
+			Stack->push<vm::callable*>(new vm::thunk(new vm::bfunc(oExecHelper), callee));
+		}
+
+		static void oExecHelper(vm::stack *Stack)
+		{
+			rObject *callee = vm::pop<rObject *>(Stack);
+			TObject *ret = NULL;
+			callee->Exec(Stack, (void *) &ret);
+			Stack->push<rObject *>( new rObject((TObject *) ret) );
 		} 
 
 		#undef EXEC_DEF

@@ -33,13 +33,13 @@ NewRow();
 
 // draw only a chosen x region
 NewPad();
-TGraph_highLimit = 2;
+TGraph_x_max = 2;
 draw(rGetObj("../example.root", "graph"), "p", red, mCi+red+2pt); 
-TGraph_lowLimit = 2;
-TGraph_highLimit = +inf;
+TGraph_x_min = 2;
+TGraph_x_max = +inf;
 draw(rGetObj("../example.root", "graph"), "l,ec,p", red, mSq+blue+1pt);
-TGraph_lowLimit = -inf;
-TGraph_highLimit = +inf;
+TGraph_x_min = -inf;
+TGraph_x_max = +inf;
 
 // skip certain points (calculation error?) 
 NewPad();
