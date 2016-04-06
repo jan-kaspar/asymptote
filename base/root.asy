@@ -91,7 +91,9 @@ void drawTH1(transform tr, picture pic, rObject obj, string options, pen _pen, m
 	real fac = 1;
 	if (TestOption(optList, "N", "n"))
 	{
-		real integral = obj.rExec("Integral", "width");
+		// TODO: first needs to fix the bug in root.cc
+		//real integral = obj.rExec("Integral", "width");
+		real integral = 0;
 		if (integral > 0)
 			fac = 1/integral;
 		else

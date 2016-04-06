@@ -506,7 +506,7 @@ G__value rObject::Exec(vm::stack *Stack)
 		if (it.type() == typeid(rObject))
 		{
 			long l = (long) get<rObject>(it).obj;
-			parameters.para[i].type = 's';	// TODO: correct letter
+			parameters.para[i].type = 's';
 			parameters.para[i].obj.i = l;
 			signature += "TObject*";
 			continue;
@@ -688,7 +688,7 @@ int rObject::Exec(vm::stack *Stack, void *result)
 
 		if (it.type() == typeid(mem::string))
 		{
-			// TODO: make it work
+			// TODO: make it work, then fix TODO in drawTH1 in base/root.asy
 			//auto t = get<mem::string>(it);
 			//printf("[%s]\n", t.c_str());
 
