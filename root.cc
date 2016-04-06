@@ -24,9 +24,6 @@
 
 using namespace mem;
 
-//#define ROOT_DEBUG 1
-
-
 //----------------------------------------------------------------------------------------------------
 
 void RootError(string msg, bool stop = true)
@@ -54,25 +51,15 @@ rObject robj;
 
 RootFileCollection::RootFileCollection(unsigned int size) : std::vector<TFile *>(size)
 {
-#ifdef ROOT_DEBUG
-	printf("RootFileCollection::RootFileCollection, this = %p\n", this);
-#endif
 }
 
 //----------------------------------------------------------------------------------------------------
 
 RootFileCollection::~RootFileCollection()
 {
-#ifdef ROOT_DEBUG
-	printf("RootFileCollection::~RootFileCollection, this = %p\n", this);
-#endif
 	for (unsigned int i = 0; i < size(); ++i)
-	{
-#ifdef ROOT_DEBUG
-		printf("\t[%i] %p %s\n", i, at(i), at(i)->GetName());
-#endif
 		delete at(i);
-	}
+
 	clear();
 }
 
@@ -109,18 +96,12 @@ TFile* RootFileCollection::Get(const string file, bool errorIfNotExisting)
 
 rObject::rObject(TObject *o) : obj(o), releaseObj(false)
 {
-#ifdef ROOT_DEBUG
-	printf("rObject::rObject (addr = %p, obj = %p)\n", this, obj);
-#endif
 }
 
 //----------------------------------------------------------------------------------------------------
 
 rObject::rObject(const rObject &copy)
 {
-#ifdef ROOT_DEBUG
-	printf("rObject::rObject(rObject at %p) (addr = %p, obj before %p, obj after %p)\n", &copy, this, obj, copy.obj);
-#endif
 	obj = copy.obj;
 	releaseObj = false;
 }
@@ -129,10 +110,6 @@ rObject::rObject(const rObject &copy)
 
 rObject::~rObject()
 {
-#ifdef ROOT_DEBUG
-	printf("rObject::~rObject (addr = %p, obj = %p)\n", this, obj);
-#endif
-
 	if (releaseObj)
 		delete obj;
 }
@@ -141,10 +118,6 @@ rObject::~rObject()
 
 rObject* rObject::Copy()
 {
-#ifdef ROOT_DEBUG
-	printf("rObject::Copy (addr = %p, obj = %p)\n", this, obj);
-#endif
-
 	if (!obj)
 		RootError("rObject::Copy > Object points to NULL.", true);
 
@@ -215,11 +188,6 @@ TObject* rObject::GetFromFileSafe(TFile *f, const string &path, bool errorIfNotE
 
 rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting, bool searchInCollections)
 {
-#ifdef ROOT_DEBUG
-	printf("rObject::GetFromFile ('%s', '%s', errorIfNotExisting = %i, searchInCollections = %i)\n",
-		file.c_str(), name.c_str(), errorIfNotExisting, searchInCollections);
-#endif
-
 	// create new (empty/invalid) instance of rObject
 	rObject *obj = new rObject();
 
@@ -253,18 +221,9 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 		names.push_back(name);
 	}
 
-#ifdef ROOT_DEBUG
-	printf("names.size = %u\n", names.size());
-	for (unsigned int i = 0; i < names.size(); i++)
-		printf("\t%u\t'%s'\n", i, names[i].c_str());
-#endif
-
 	TList *list = NULL;
 	for (unsigned int i = 0; i < names.size(); i++)
 	{
-#ifdef ROOT_DEBUG
-		printf("%u\n", i);
-#endif
 		if (i == 0)
 		{
 			// get from file
@@ -287,7 +246,6 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 						{
 							string test = names[i].substr(0, idx);
 							TObject *o = GetFromFileSafe(f, test, errorIfNotExisting);
-							//printf("try %s: %p\n", test.c_str(), o);
 							if (o)
 							{
 								if (o->InheritsFrom("TDirectory"))
@@ -332,11 +290,13 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 			} else {
 				TIter next(list);
 				while (TObject *iobj = next())
+				{
 					if (!names[i].compare(iobj->GetName()))
 					{
 						obj->obj = iobj;
 						break;
 					}
+				}
 			}
 	
 			if (!obj->obj)
@@ -363,10 +323,6 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 			}
 		}
 
-#ifdef ROOT_DEBUG
-		printf("obj->obj = %p\n", obj->obj);
-#endif
-
 		// we're at the end of the chain
 		if (i == names.size() - 1)
 			break;
@@ -382,10 +338,6 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 		if (obj->obj->IsA()->InheritsFrom("TH1"))
 			list = ((TH1 *) obj->obj)->GetListOfFunctions();
 
-#ifdef ROOT_DEBUG
-		printf("list = %p\n", list);
-#endif
-
 		if (!list)
 		{
 			if (errorIfNotExisting)
@@ -396,10 +348,6 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 		}
 	}
 
-#ifdef ROOT_DEBUG
-	printf("\treturning rObject at %p, pointing to TObject at %p\n", obj, obj->obj);
-#endif
-
 	robj = *obj;
 	return obj;
 }
@@ -409,12 +357,10 @@ rObject* rObject::GetFromFile(string file, string name, bool errorIfNotExisting,
 vm::array* rObject::GetListOf(string file, string baseDir, bool includeDirectories,
 		bool includeObjects)
 {
-	//printf(">> rGetListOfDirectories\n");
-
 	// get base directory
 	TFile *f = files.Get(file);
 	TDirectory *base = NULL;
-	if (baseDir.compare(".") == 0 || baseDir.compare("/") == 0)
+	if (baseDir.compare("/") == 0)
 	{
 		base = f;
 	} else {
@@ -471,12 +417,11 @@ bool rObject::InheritsFrom(const mem::string &className)
 
 //----------------------------------------------------------------------------------------------------
 
+#ifdef ROOT_5
+
 G__value rObject::Exec(vm::stack *Stack)
 {
 	using namespace vm;
-#ifdef ROOT_DEBUG
-	printf(">> rObject::Exec this = %p, obj = %p, stack = %p\n", this, obj, Stack);
-#endif
 
 	// check obj validity
 	if (!obj)
@@ -607,7 +552,7 @@ G__value rObject::Exec(vm::stack *Stack)
 	lastMethod = obj->IsA()->GetName();
 	lastMethod += "::" + method + "(" + signature + ")";
 
-#ifdef ROOT_DEBUG
+	/*
 	printf("--- exec\n");
 	Write();
 	printf("%s\n", lastMethod.c_str());
@@ -616,12 +561,9 @@ G__value rObject::Exec(vm::stack *Stack)
 	{
 		printf("\t%i %i\n", i, parameters.para[i].type);
 	}
-#endif
+	*/
 
 	// get method reference
-#ifdef ROOT_DEBUG
-	printf("\n>> getting method: %s\n", lastMethod.c_str());
-#endif
 	long offset;
 	G__ClassInfo *clInfo = (G__ClassInfo*) obj->IsA()->GetClassInfo();
 	G__MethodInfo mtInfo = clInfo->GetMethod(method.c_str(), &parameters, &offset);
@@ -640,13 +582,14 @@ G__value rObject::Exec(vm::stack *Stack)
 	address = (void*)((Long_t)address + offset);
 
 	// eventually, call the method
-#ifdef ROOT_DEBUG
-	printf("\n>> calling method: %s\n", lastMethod.c_str());
-#endif
 	return func.Execute(address);
 }
 
+#endif
+
 //----------------------------------------------------------------------------------------------------
+
+#ifdef ROOT_5
 
 void rObject::PrintG__valueInfo(const G__value &v)
 {
@@ -671,3 +614,5 @@ void rObject::PrintG__valueInfo(const G__value &v)
 		printf("\tTObject, class = %s, name = %s\n", o->IsA()->GetName(), o->GetName());
 	}
 }
+
+#endif

@@ -4,25 +4,35 @@
 * Authors: 
 *	Jan Kašpar (jan.kaspar@gmail.com) 
 *
-* \version 1.2
-*
 ****************************************************************************/
 
-#ifndef _ROOT_H_
-#define _ROOT_H_
+#ifndef _root_h_
+#define _root_h_
 
-#include <memory.h>
-#include <array.h>
+#include "RVersion.h"
+
+#if ROOT_VERSION_CODE < ROOT_VERSION(6,0,0)
+	#define ROOT_5
+#endif
+
+#if ROOT_VERSION_CODE >= ROOT_VERSION(6,0,0)
+	#define ROOT_6
+#endif
+
 #include <vector>
 
+#include "memory.h"
+#include "array.h"
 #include "gc_cpp.h"
 #include "stack.h"
 #include "callable.h"
 
+#ifdef ROOT_5
+	#include "G__ci.h"
+#endif
+
 class TFile;
 class TObject;
-
-#include "G__ci.h"
 
 //----------------------------------------------------------------------------------------------------
 
@@ -112,6 +122,7 @@ class rObject : public gc
 			callee->Exec(Stack);
 		}
 
+#ifdef ROOT_5
 		#define EXEC_DEF(prefix, Type, typeCode, typeName, unionMember, defaultValue) \
 		static void prefix##Exec(vm::stack *Stack) \
 		{ \
@@ -186,13 +197,16 @@ class rObject : public gc
 		} 
 
 		#undef EXEC_DEF
+#endif
 
 	private:
 		/// the name of the last (ROOT) method called by any of ?Exec methods
 		static mem::string lastMethod;
 
+#ifdef ROOT_5
 		/// prints information about the given G__value
 		static void PrintG__valueInfo(const G__value &);
+#endif
 };
 
 
