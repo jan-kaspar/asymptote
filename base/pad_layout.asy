@@ -4,7 +4,6 @@
 * Authors: 
 *	Jan Kašpar (jan.kaspar@gmail.com) 
 *
-* \file pad_layout.asy
 * \brief Macros for an intelligent layout of drawings into a final figure.
 ****************************************************************************/
 
@@ -15,14 +14,12 @@ from settings access verbose;
 //------------------------------------- standard settings --------------------------------------------
 //----------------------------------------------------------------------------------------------------
 
-pen std_pens[] = { black, red, blue, heavygreen, cyan, magenta, orange, green, olive };
-pen std_colors[] = std_pens;
-pen stdPens[] = std_pens;
+pen stdPens[] = { black, red, blue, heavygreen, cyan, magenta, orange, green, olive };
 
 pen StdPen(int i, int base=0)
 {
 	if (base == 0)
-		base = std_pens.length;
+		base = stdPens.length;
 
 	int group = quotient(i, base);
 	int idx = i % base;
@@ -33,7 +30,7 @@ pen StdPen(int i, int base=0)
 	if (group == 2) p = dashdotted;
 	if (group == 3) p = longdashed;
 
-	return p + std_pens[idx];
+	return p + stdPens[idx];
 }
 
 pair O = (0, 0);
@@ -281,7 +278,7 @@ TicksStruct xTicksDef = LeftTicks(), yTicksDef = RightTicks();
 int xGridHintDef = 0, yGridHintDef = 0;
 
 /// whether grid should be drawn by default
-bool drawGridDef = false;
+bool drawGridDef = true;
 
 /// default grid pens
 pen pTickGridDef = dotted, ptickGridDef = nullpen;
@@ -1191,7 +1188,7 @@ void AttachLegend(string title="", int columns=1, real colWidth=0., bool stretch
 //----------------------------------------------------------------------------------------------------
 
 /*
- *\brief TODO
+ *\brief Method to attach legend together with manual call to BuildLegend (with all parameters available).
 */
 void AttachLegend(frame fLegend, pair picAlig=NE, filltype fillT = Fill(white))
 {

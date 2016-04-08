@@ -4,7 +4,6 @@
 * Authors: 
 *	Jan Kašpar (jan.kaspar@gmail.com) 
 *
-* \file root.asy
 * \brief Macros to draw ROOT objects.
 ****************************************************************************/
 
@@ -14,6 +13,7 @@ import palette;
 
 from settings access verbose;
 
+// whether to use TNamed::GetName when supplied label=""
 bool useDefaultLabel = false;
 
 //----------------------------------------------------------------------------------------------------
@@ -173,7 +173,8 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 	if (_legend.s == "" && useDefaultLabel)
 		_legend = obj.sExec("GetName");
 
-	if (_legend.s != "") {
+	if (_legend.s != "")
+	{
 		Legend bla;
 		bla.operator init(_legend.s, _pen, _marker.f);
 		pic.legend.push(bla);
@@ -416,14 +417,18 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 // TGraph
 //----------------------------------------------------------------------------------------------------
 
+// skip every nth point
 int TGraph_reducePoints = 1;
-int TGraph_skipPoints[];	//< point indexes to be skipped
-int TGraph_N_limit = intMax;
 
-real TGraph_x_min = -inf;
-real TGraph_x_max = +inf;
-real TGraph_y_min = -inf;
-real TGraph_y_max = +inf;
+// list of indeces of points to be skipped
+int TGraph_skipPoints[];
+
+// limit on number of points
+int TGraph_nPointsLimit = intMax;
+
+// range selection
+real TGraph_x_min = -inf, TGraph_x_max = +inf;
+real TGraph_y_min = -inf, TGraph_y_max = +inf;
 
 pen TGraph_errorBarPen = black;
 arrowbar TGraph_errorBar = Bars;
@@ -492,7 +497,7 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 	// go through all points
 	int j = 0, i_eff;
 	guide p, uep, bep;
-	for (int i = 0; i < N && i_eff < TGraph_N_limit; ++i)
+	for (int i = 0; i < N && i_eff < TGraph_nPointsLimit; ++i)
 	{
 		// skip point?
 		bool skip = false;
@@ -610,6 +615,7 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 // TGraph2D
 //----------------------------------------------------------------------------------------------------
 
+// range selection
 real TGraph2D_x_min = -inf, TGraph2D_x_max = +inf;
 real TGraph2D_y_min = -inf, TGraph2D_y_max = +inf;
 real TGraph2D_z_min = -inf, TGraph2D_z_max = +inf;
@@ -702,24 +708,35 @@ void drawTGraph2D(transform tr, picture pic, RootObject obj, string options, pen
 
 	//pen[][] palette = { {red, green}, {blue, gray}};
 	//fill(contour(points, values, cValues), palette);
+
+	// add legend entry
+	if (_legend.s == "" && useDefaultLabel)
+		_legend = obj.sExec("GetName");
+
+	if (_legend.s != "")
+	{ 
+		Legend bla;
+		bla.operator init(_legend.s, _pen);
+		pic.legend.push(bla);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------
 // TF1
 //----------------------------------------------------------------------------------------------------
 
-RootObject TF1_obj;
+// number of function samples
+int TF1_nPoints = 1000;
 
+// range selection
+real TF1_x_min = -inf;
+real TF1_x_max = +inf;
+
+RootObject TF1_obj;
 real TF1_enumerator(real x)
 {
 	return TF1_obj.rExec("Eval", x);
 }
-
-int TF1_points = 1000;
-
-real TF1_x_min = -inf;
-real TF1_x_max = +inf;
-
 
 /**
  *\brief Draws a 1D function.
@@ -740,10 +757,11 @@ void drawTF1(transform tr, picture pic, RootObject obj, string options, pen _pen
 	if (TF1_x_max != +inf)
 		xMax[0] = TF1_x_max;
 
-	//write("xMin = ", xMin[0]);
-	//write("xMax = ", xMax[0]);
+	// add legend entry
+	if (_legend.s == "" && useDefaultLabel)
+		_legend = obj.sExec("GetName");
 
-	draw(tr*graph(TF1_enumerator, xMin[0], xMax[0], TF1_points), _pen, _legend);
+	draw(tr*graph(TF1_enumerator, xMin[0], xMax[0], TF1_nPoints), _pen, _legend);
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -762,7 +780,8 @@ void drawTF1(transform tr, picture pic, RootObject obj, string options, pen _pen
 void draw(transform tr = identity(), picture pic=currentpicture, RootObject obj, string options="def", pen pen=currentpen, 
 	marker marker=nomarker, Label legend="")
 {
-	if (!obj.valid) {
+	if (!obj.valid)
+	{
 		write("ERROR in draw(..., RootObject, ...) > Cannot draw invalid RootObject.");
 		return;
 	}
@@ -773,6 +792,6 @@ void draw(transform tr = identity(), picture pic=currentpicture, RootObject obj,
 	if (obj.InheritsFrom("TGraph2D")) { drawTGraph2D(tr, pic, obj, options, pen, marker, legend); return; }
 	if (obj.InheritsFrom("TF1")) { drawTF1(tr, pic, obj, options, pen, marker, legend); return; }
 
-	write("ERROR in draw(..., RootObject, ...) > Cannot draw the following RootObject.");
+	write("ERROR in draw(..., RootObject, ...) > Do not know how to draw the following RootObject.");
 	obj.Print();
 }
