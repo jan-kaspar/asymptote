@@ -140,7 +140,8 @@ ty *readType() {
 
 trans::varEntry *primitiveTy::virtualField(symbol id, signature *sig)
 {
-  switch (kind) {
+  switch (kind)
+  {
     case ty_pair:
       FIELD(primReal,SYM(x),pairXPart);
       FIELD(primReal,SYM(y),pairYPart);
@@ -192,23 +193,34 @@ trans::varEntry *primitiveTy::virtualField(symbol id, signature *sig)
       ROOT_EXEC(RootObject, SYM(oExec), oExec);
 
 	  static function iff(primBoolean(), formal(primString(), SYM(class)));
-      if (id == SYM(InheritsFrom) && equivalent(sig, iff.getSignature())) {
+      if (id == SYM(InheritsFrom) && equivalent(sig, iff.getSignature()))
+	  {
         static trans::virtualFieldAccess a(run::RootObject_InheritsFrom);
         static trans::varEntry v(&iff, &a, 0, position());
         return &v;
       }
 
 	  static function pf(primVoid());
-      if (id == SYM(Print) && equivalent(sig, pf.getSignature())) {
+      if (id == SYM(Print) && equivalent(sig, pf.getSignature()))
+	  {
         static trans::virtualFieldAccess a(run::RootObject_Print);
         static trans::varEntry v(&pf, &a, 0, position());
         return &v;
       }
 
 	  static function cf(primRootObject());
-      if (id == SYM(Copy) && equivalent(sig, cf.getSignature())) {
+      if (id == SYM(Copy) && equivalent(sig, cf.getSignature()))
+	  {
         static trans::virtualFieldAccess a(run::RootObject_Copy);
         static trans::varEntry v(&cf, &a, 0, position());
+        return &v;
+      }
+
+	  static function raef(primReal(), formal(primString(), SYM(method)), formal(primInt(), SYM(index)));
+      if (id == SYM(raExec) && equivalent(sig, raef.getSignature()))
+	  {
+        static trans::virtualFieldAccess a(run::RootObject_rArrayExec);
+        static trans::varEntry v(&raef, &a, 0, position());
         return &v;
       }
 	
@@ -244,10 +256,12 @@ ty *ty::virtualFieldGetType(symbol id)
 ty *primitiveTy::virtualFieldGetType(symbol id)
 {
 #ifdef HAVE_ROOT
-  if (kind == ty_RootObject) {
+  if (kind == ty_RootObject)
+  {
     if (id == SYM(InheritsFrom)) return new function(primBoolean(), formal(primString(), SYM(class)));
     if (id == SYM(Print)) return new function(primVoid());
     if (id == SYM(Copy)) return new function(primRootObject());
+    if (id == SYM(raExec)) return new function(primReal(), formal(primString(), SYM(method)), formal(primInt(), SYM(index)));
   }
 #endif
 

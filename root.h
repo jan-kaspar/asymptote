@@ -261,6 +261,8 @@ class RootObject : public gc
 		} 
 
 		#undef EXEC_DEF
+
+		double rArrayExec(string method, int index);
 #endif
 
 	private:

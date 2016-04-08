@@ -769,4 +769,40 @@ int RootObject::Exec(vm::stack *Stack, void *result)
 	return 0;
 }
 
+//----------------------------------------------------------------------------------------------------
+
+double RootObject::rArrayExec(string method, int index)
+{
+	// check obj validity
+	if (!obj)
+	{
+		RootError("RootObject::rArrayExec > RootObject is invalid.");
+		return 0.;
+	}
+
+	// run the method
+	ClassInfo_t* clInfo = obj->IsA()->GetClassInfo();
+	CallFunc_t* callFunc = gInterpreter->CallFunc_Factory();
+
+	Long_t offset;
+	gInterpreter->CallFunc_SetFuncProto(callFunc, clInfo, method.c_str(), "", &offset);
+
+	lastMethod = obj->IsA()->GetName();
+	lastMethod += "::" + method + "()";
+	if (! gInterpreter->CallFunc_IsValid(callFunc) )
+	{
+		RootError("RootObject::Exec > no " + lastMethod + " method found.");
+		return 0.;
+	}
+ 
+	TInterpreter::CallFuncIFacePtr_t faceptr = gInterpreter->CallFunc_IFacePtr(callFunc);
+
+	vector<void *> parameters;
+	double *ret = NULL;
+    faceptr.fGeneric(obj, parameters.size(), parameters.data(), &ret);
+
+	// return the array member
+	return ret[index];
+}
+
 #endif

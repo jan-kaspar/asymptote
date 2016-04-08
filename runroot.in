@@ -103,5 +103,15 @@ stringarray *RootGetListOfEntries(string file, string baseDir)
 {
 	return RootObject::GetListOf(file, baseDir, true, true);
 }
+
+double :RootObject_rArrayExec_helper(string method, Int index, RootObject *o)
+{
+	return o->rArrayExec(method, index);
+}
+
+callable* :RootObject_rArrayExec(RootObject *o)
+{
+	return new thunk(new bfunc(RootObject_rArrayExec_helper), o);
+}
 
 // vim: ft=cpp
