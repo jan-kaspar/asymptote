@@ -111,6 +111,9 @@ class RootObject : public gc
 #ifdef ROOT_5
 		G__value Exec(vm::stack *Stack); 
 
+		/// prints information about the given G__value
+		static void PrintG__valueInfo(const G__value &);
+
 		static void vExec(vm::stack *Stack)
 		{
 			RootObject *callee = vm::pop<RootObject *>(Stack);
@@ -197,6 +200,8 @@ class RootObject : public gc
 		} 
 
 		#undef EXEC_DEF
+		
+		double rArrayExec(string method, int index);
 #endif
 
 #ifdef ROOT_6
@@ -268,11 +273,6 @@ class RootObject : public gc
 	private:
 		/// the name of the last (ROOT) method called by any of ?Exec methods
 		static mem::string lastMethod;
-
-#ifdef ROOT_5
-		/// prints information about the given G__value
-		static void PrintG__valueInfo(const G__value &);
-#endif
 };
 
 

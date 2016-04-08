@@ -559,17 +559,6 @@ G__value RootObject::Exec(vm::stack *Stack)
 	lastMethod = obj->IsA()->GetName();
 	lastMethod += "::" + method + "(" + signature + ")";
 
-	/*
-	printf("--- exec\n");
-	Write();
-	printf("%s\n", lastMethod.c_str());
-	printf("pn = %i\n", parameters.paran);
-	for (signed int i = 0; i < parameters.paran; i++)
-	{
-		printf("\t%i %i\n", i, parameters.para[i].type);
-	}
-	*/
-
 	// get method reference
 	long offset;
 	G__ClassInfo *clInfo = (G__ClassInfo*) obj->IsA()->GetClassInfo();
@@ -592,11 +581,7 @@ G__value RootObject::Exec(vm::stack *Stack)
 	return func.Execute(address);
 }
 
-#endif
-
 //----------------------------------------------------------------------------------------------------
-
-#ifdef ROOT_5
 
 void RootObject::PrintG__valueInfo(const G__value &v)
 {
@@ -620,6 +605,42 @@ void RootObject::PrintG__valueInfo(const G__value &v)
 		TObject *o = (TObject *) v.obj.i;
 		printf("\tTObject, class = %s, name = %s\n", o->IsA()->GetName(), o->GetName());
 	}
+}
+
+//----------------------------------------------------------------------------------------------------
+
+double RootObject::rArrayExec(string method, int index)
+{
+	lastMethod = obj->IsA()->GetName();
+	lastMethod += "::" + method + "()";
+
+	// get method reference
+	G__param parameters;
+	parameters.paran = 0;
+
+	long offset;
+	G__ClassInfo *clInfo = (G__ClassInfo*) obj->IsA()->GetClassInfo();
+	G__MethodInfo mtInfo = clInfo->GetMethod(method.c_str(), &parameters, &offset);
+	if (!mtInfo.Handle())
+	{
+		RootError("RootObject::Exec > no " + lastMethod + " method found.");
+		return 0.;
+	}
+	
+	G__CallFunc func;
+	func.SetFunc(mtInfo);
+	func.SetArgs(parameters);
+
+	// calculate address
+	void *address = obj->IsA()->DynamicCast(TObject::Class(), obj, kFALSE);
+	address = (void*)((Long_t)address + offset);
+
+	// call the method
+	G__value ret = func.Execute(address);
+
+	// return the array element
+	double *array = (double *) ret.obj.i;
+	return array[index];
 }
 
 #endif
