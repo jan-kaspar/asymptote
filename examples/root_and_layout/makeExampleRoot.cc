@@ -37,8 +37,8 @@ void makeExampleRoot()
 
 	TGraph2D *g2 = new TGraph2D();
 	g2->SetName("graph2");
-	for (double x = -5; x <= +5; x += 0.5)
-		for (double y = -5; y <= +5; y += 0.5)
+	for (double x = -5.; x <= +5.; x += 0.5)
+		for (double y = -5.; y <= +5.; y += 0.5)
 			g2->SetPoint(g2->GetN(), x, y, x*x + y*y);
 	g2->Write();
 

@@ -610,8 +610,21 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 // TGraph2D
 //----------------------------------------------------------------------------------------------------
 
-// TODO
-real[] tgraph2DContourValues;
+real TGraph2D_x_min = -inf, TGraph2D_x_max = +inf;
+real TGraph2D_y_min = -inf, TGraph2D_y_max = +inf;
+real TGraph2D_z_min = -inf, TGraph2D_z_max = +inf;
+
+// list of z value for which contours shall be draw
+real[] TGraph2D_contourValues;
+
+// if TGraph2D_contourValues is empty, make the following number of equidistant contours between z_min and z_max
+int TGraph2D_nContours = 9;
+
+// formatting rule for labels
+string TGraph2D_labelFormat = "%f";
+
+// pen for drawing lables, if nullpen, the pen supplied to drawTGraph2D is used
+pen TGraph2D_labelPen = nullpen;
 
 /**
  *\brief Draws a 2D graph.
@@ -619,50 +632,76 @@ real[] tgraph2DContourValues;
  * Recognized options are:
  *  - "cont" to draw contour lines (default option)
  **/
+// TODO: more options: textual labels on/off, color coded contours (+z scale bar)
 void drawTGraph2D(transform tr, picture pic, RootObject obj, string options, pen _pen, marker _marker, Label _legend)
 {
 	if (options == "def")
 		options = "cont";
 
-	if (find(options, "cont") >= 0) {
+	if (find(options, "cont") >= 0)
+	{
 		int N = obj.iExec("GetN");
 		pair[] points;
 		real[] values;
-		real min = 0, max = 0;
-		for (int i = 0; i < N; ++i) {
-			real[] x = {0.};
-			real[] y = {0.};
-			real[] z = {0.};
 
-			// TODO: there is no more GetPoint method in TGraph2D
-			obj.vExec("GetPoint", i, x, y, z);
-			points[i] = (x[0], y[0]);
-			values[i] = z[0];
+		real c_min = +inf, c_max = -inf;
 
-			if (i == 0)min = max = z[0];
-			if (z[0] > max) max = z[0];
-			if (z[0] < min) min = z[0];
+		for (int i = 0; i < N; ++i)
+		{
+			real x = obj.raExec("GetX", i);
+			real y = obj.raExec("GetY", i);
+			real z = obj.raExec("GetZ", i);
+
+			// skip points outside selection
+			if (x < TGraph2D_x_min || x > TGraph2D_x_max)
+				continue;
+			if (y < TGraph2D_y_min || y > TGraph2D_y_max)
+				continue;
+			if (z < TGraph2D_z_min || z > TGraph2D_z_max)
+				continue;
+
+			points.push( Scale((x, y)) );
+			values.push(z);
+
+			// determine content range
+			if (z > c_max)
+				c_max = z;
+			if (z < c_min)
+				c_min = z;
 		}
-			
-		if (tgraph2DContourValues.length == 0) {
-			int n_contours = 10;	
-			real step = (max - min) / (n_contours - 1);
-			tgraph2DContourValues = sequence(1, n_contours) * step + min;
+
+		if (TGraph2D_contourValues.length == 0)
+		{
+			real step = (c_max - c_min) / (TGraph2D_nContours + 1);
+			real v = c_min + step;
+			for (int i = 0; i < TGraph2D_nContours; ++i)
+			{
+				TGraph2D_contourValues.push(v);
+				v += step;
+			}
 		}
 		
-		Label[] labels;
-		for (int i = 0; i < tgraph2DContourValues.length; ++i) {
-			labels[i] = Label(string(tgraph2DContourValues[i], 3), Relative(0.5), (0,0), black, UnFill(1bp));
-		
+		// generate contours
+		guide contours[][] = contour(points, values, TGraph2D_contourValues);
+
+		// plot contours
+		pen labelPen = (TGraph2D_labelPen == nullpen) ? _pen : TGraph2D_labelPen;
+		for (int i : contours.keys)
+		{
+			Label label = Label(format(TGraph2D_labelFormat, TGraph2D_contourValues[i]), Relative(0.5), (0,0),
+				labelPen, UnFill());
+
+			for (int j : contours[i].keys)
+			{
+				draw(label, contours[i][j], _pen);
+			}
 		}
-			
-		draw(labels, contour(points, values, tgraph2DContourValues), _pen);
 
-		//pen[][] palette = { {red, green}, {blue, gray}};
-		//fill(contour(points, values, cValues), palette);
-
-		tgraph2DContourValues.delete();
+		TGraph2D_contourValues.delete();
 	}
+
+	//pen[][] palette = { {red, green}, {blue, gray}};
+	//fill(contour(points, values, cValues), palette);
 }
 
 //----------------------------------------------------------------------------------------------------
