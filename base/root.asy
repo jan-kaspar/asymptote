@@ -66,6 +66,7 @@ real TH1_y_def = -1.;
  * Recognized options are:
  *  - "N", "n"	to normalize the histogram to the integral/sum of 1.
  *  - "vl"		to draw vertical lines
+ *  - "cl"		to draw central lines (line that connects bin centers)
  *  - "d0"		discard bin with zero content
  *  - "eb"		to draw bin error bars
  *  - "ec"		to draw error contour
@@ -83,9 +84,19 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 	OptionList optList = StrToOptList(options);
 
 	bool vertLines = TestOption(optList, "vl");
+	bool centLines = TestOption(optList, "cl");
 	bool discZeros = TestOption(optList, "d0");
 	bool errBars = TestOption(optList, "eb");
 	bool errCont = TestOption(optList, "ec");
+
+	bool horLines = true;
+	if (vertLines)
+		horLines = false;
+	if (centLines)
+	{
+		horLines = false;
+		vertLines = false;
+	}
 	
 	// normalization factor
 	real fac = 1;
@@ -141,9 +152,14 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 			}
 		}
 		
-		// horizontal line
-		bit = bit--Scale((l, vCnt))--Scale((r, vCnt));
-		if (!vertLines)
+		// add line segment(s)
+		if (centLines)
+			bit = bit--Scale((c, vCnt));
+		else
+			bit = bit--Scale((l, vCnt))--Scale((r, vCnt));
+
+		// draw segments if non-continuous mode
+		if (horLines)
 		{
 			if (size(bit) > 0)
 				draw(tr*bit, _pen, _marker);
