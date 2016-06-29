@@ -226,7 +226,7 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 
 real TH2_x_min = -inf, TH2_x_max = +inf;
 real TH2_y_min = -inf, TH2_y_max = +inf;
-real TH2_z_min = 0, TH2_z_max = -inf;
+real TH2_z_min = 2, TH2_z_max = 1;	// invalid order, will trigger automatic calculation
 
 pen TH2_boundaryPen = black;
 pen TH2_palette[] = Gradient(blue, heavygreen, yellow, red, black);
