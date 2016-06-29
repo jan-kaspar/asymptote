@@ -303,7 +303,7 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 	}
 
 	// determine z scale
-	real c_min = TH2_z_min, c_max = TH2_z_max;
+	real c_min = pic.scale.z.T(TH2_z_min), c_max = pic.scale.z.T(TH2_z_max);
 	if (c_max <= c_min)
 	{
 		for (int xi = xi_min; xi <= xi_max; ++xi)
