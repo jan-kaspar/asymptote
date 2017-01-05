@@ -264,8 +264,8 @@ paletteticks PaletteTicks(Label format="", ticklabel ticklabel=null,
 {
   return new ticks(int sign=-1) {
     format.align(sign > 0 ? RightSide : LeftSide);
-    return Ticks(sign,format,ticklabel,beginlabel,endlabel,N,n,Step,step,
-                 true,true,extend=true,pTick,ptick);
+    return Ticks(-sign,format,ticklabel,beginlabel,endlabel,N,n,Step,step,
+                 true,true,extend=false,pTick,ptick);
   };
 } 
 
@@ -335,13 +335,15 @@ void palette(picture pic=currentpicture, Label L="", bounds bounds,
   axis(pic,L,g,g2,p,ticks(sgn(axis.side.x*dot(lambda,par))),locate,mz.divisor,
        true);
 
+	/*
   pic.add(new void(frame f, transform t) {
       pair Z0=t*initial;
       pair Z1=t*final;
       draw(f,Z0--(Z0.x,Z1.y)--Z1--(Z1.x,Z0.y)--cycle,p);
     },true);
+	*/
 
-  pic.addBox(initial,final);
+  //pic.addBox(initial,final);
 }
 
 // A grayscale palette
