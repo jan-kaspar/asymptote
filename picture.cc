@@ -14,6 +14,7 @@
 #include "drawverbatim.h"
 #include "drawlabel.h"
 #include "drawlayer.h"
+#include "drawsurface.h"
 
 using std::ifstream;
 using std::ofstream;
@@ -32,10 +33,13 @@ texstream::~texstream() {
   unlink((name+"aux").c_str());
   unlink((name+"log").c_str());
   unlink((name+"out").c_str());
-  unlink((name+"m9").c_str());
-  if(settings::pdf(texengine))
+  if(settings::pdf(texengine)) {
     unlink((name+"pdf").c_str());
+    unlink((name+"m9").c_str());
+  } else
+    unlink((name+"pbsdat").c_str());
   if(context) {
+    unlink("cont-new.log");
     unlink((name+"tex").c_str());
     unlink((name+"top").c_str());
     unlink((name+"tua").c_str());
@@ -44,6 +48,8 @@ texstream::~texstream() {
 }
 
 namespace camp {
+
+extern void draw();
 
 bool isIdTransform3(const double* t)
 {
@@ -109,30 +115,6 @@ void multiplyTransform3(double*& t, const double* s, const double* r)
   }
 }
   
-void boundstriples(double& x, double& y, double& z, double& X, double& Y,
-                   double& Z, size_t n, const triple* v)
-{
-  if(n == 0 || v == NULL)
-    return;
-
-  X=x=v[0].getx();
-  Y=y=v[0].gety();
-  Z=z=v[0].getz();
-    
-  for(size_t i=1; i < n; ++i) {
-    const triple vi=v[i];
-    const double vx=vi.getx();
-    x=min(x,vx);
-    X=max(X,vx);
-    const double vy=vi.gety();
-    y=min(y,vy);
-    Y=max(Y,vy);
-    const double vz=vi.getz();
-    z=min(z,vz);
-    Z=max(Z,vz);
-  }
-}
-
 double xratio(const triple& v) {return v.getx()/v.getz();}
 double yratio(const triple& v) {return v.gety()/v.getz();}
   
@@ -620,6 +602,35 @@ int picture::epstopdf(const string& epsname, const string& pdfname)
   return status;
 }
   
+int picture::pdftoeps(const string& pdfname, const string& epsname)
+{
+  mem::vector<string> cmd;
+  cmd.push_back(getSetting<string>("gs"));
+  cmd.push_back("-q");
+  cmd.push_back("-dNOCACHE");
+  cmd.push_back("-dNOPAUSE");
+  cmd.push_back("-dBATCH");
+  cmd.push_back("-P");
+  if(safe)
+    cmd.push_back("-dSAFER");
+  string texengine=getSetting<string>("tex");
+  cmd.push_back("-sDEVICE="+getSetting<string>("epsdriver"));
+  
+  cmd.push_back("-sOutputFile="+stripDir(epsname));
+  cmd.push_back(stripDir(pdfname));
+
+  char *oldPath=NULL;
+  string dir=stripFile(epsname);
+  if(!dir.empty()) {
+    oldPath=getPath();
+    setPath(dir.c_str());
+  }
+  int status=System(cmd,0,true,"gs","Ghostscript");
+  if(oldPath != NULL)
+    setPath(oldPath);
+  return status;
+}
+  
 bool picture::reloadPDF(const string& Viewer, const string& outname) const 
 {
   static bool needReload=true;
@@ -668,6 +679,8 @@ bool picture::postprocess(const string& prename, const string& outname,
         if(status != 0)
           reportError("Cannot rename "+prename+" to "+outname);
       } else status=epstopdf(prename,outname);
+    } else if(epsformat) {
+      status=pdftoeps(prename,outname);
     } else {
       mem::vector<string> cmd;
       double render=fabs(getSetting<double>("render"));
@@ -699,8 +712,9 @@ bool picture::postprocess(const string& prename, const string& outname,
         if(expand == 1.0)
           cmd.push_back("+antialias");
         push_split(cmd,getSetting<string>("convertOptions"));
-        cmd.push_back("-geometry");
+        cmd.push_back("-resize");
         cmd.push_back(String(100.0/expand)+"%x");
+        if(outputformat == "jpg") cmd.push_back("-flatten");
         cmd.push_back(nativeformat()+":"+prename);
         cmd.push_back(outputformat+":"+outname);
         status=System(cmd,0,true,"convert");
@@ -789,7 +803,8 @@ bool picture::shipout(picture *preamble, const string& Prefix,
   bool pdf=settings::pdf(texengine);
   
   bool standardout=Prefix == "-";
-  string prefix=standardout ? standardprefix : Prefix;
+  string prefix=standardout ? standardprefix : stripExt(Prefix);
+
   string preformat=nativeformat();
   string outputformat=format.empty() ? defaultformat() : format;
   bool epsformat=outputformat == "eps";
@@ -1059,8 +1074,10 @@ bool picture::shipout(picture *preamble, const string& Prefix,
           if(context) prename=stripDir(prename);
           status=postprocess(prename,outname,outputformat,magnification,wait,
                              view,pdf && Labels,svgformat);
-          if(pdfformat && !getSetting<bool>("keep"))
+          if(pdfformat && !getSetting<bool>("keep")) {
             unlink(auxname(prefix,"m9").c_str());
+            unlink(auxname(prefix,"pbsdat").c_str());
+          }
         }
       }
     }
@@ -1080,6 +1097,9 @@ void picture::render(GLUnurbs *nurb, double size2,
     assert(*p);
     (*p)->render(nurb,size2,Min,Max,perspective,lighton,transparent);
   }
+#ifdef HAVE_GL
+  drawBezierPatch::S.draw();
+#endif  
 }
   
 struct Communicate : public gc {
