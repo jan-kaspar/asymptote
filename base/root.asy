@@ -306,6 +306,10 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 	real c_min = pic.scale.z.T(TH2_z_min), c_max = pic.scale.z.T(TH2_z_max);
 	if (c_max <= c_min)
 	{
+		// TODO
+		c_max = -1e100;
+		c_min = +1e100;
+
 		for (int xi = xi_min; xi <= xi_max; ++xi)
 		{
 			for (int yi = yi_min; yi <= yi_max; ++yi)
@@ -330,7 +334,14 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 
 	if (c_min >= c_max)
 	{
-		write("ERROR in drawTH2 > "+format("c_min=%.2E, ", c_min)+format("c_max=%.2E, ", c_max));
+		if (pic.scale.z.scale.logarithmic && c_max == 0)
+		{
+			// this can be the case where histogram contains only cells which are empty or with 1 hit
+			// set some scale to permit plotting it
+			c_min = -1;
+		} else {
+			write("ERROR in drawTH2 > "+format("c_min=%.2E, ", c_min)+format("c_max=%.2E, ", c_max));
+		}
 	}
 
 	if (verbose > 0)
