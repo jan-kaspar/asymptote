@@ -650,7 +650,6 @@ void GShipout(string prefix=defaultfilename, pair alignment=(0, 0), real hSkip=1
 	int rows = row_max - row_min + 1;
 
 	if (cols < 1 || rows < 1) {
-		write("WARNING in GShipout > Nothing to shipout");	
 		return;
 	}
 
@@ -759,20 +758,14 @@ void GShipout(string prefix=defaultfilename, pair alignment=(0, 0), real hSkip=1
 
 //----------------------------------------------------------------------------------------------------
 
-///\brief Alternative name to GShipout
-void Shipout(string prefix=defaultfilename, pair alignment=(0, 0), real hSkip=1cm, real vSkip=1cm, real margin=1mm, 
-	pen p = nullpen, filltype filltype = Fill(white)) = GShipout;
-
-
-//----------------------------------------------------------------------------------------------------
-
 /**
  *\brief The function that is automatically called at the exit time.
  **/
 void exitfunction()
 {
-	if (needshipout())
-		GShipout();
+	implicitshipout = true;
+	GShipout();
+	implicitshipout = false;
 }
 
 atexit(exitfunction);

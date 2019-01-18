@@ -4,12 +4,17 @@
  * Render 3D Bezier paths and surfaces.
  *****/
 
+#ifdef __CYGWIN__
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <stdlib.h>
 #include <fstream>
 #include <cstring>
 #include <sys/time.h>
 
 #include "common.h"
+#include "locate.h"
 
 #ifdef HAVE_GL
 
@@ -39,10 +44,22 @@
 #endif
 #endif
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include "shaders.h"
+#include "material.h"
+
+using settings::locateFile;
+
 namespace camp {
 billboard BB;
-}
+GLint noColorShader;
+GLint colorShader;
 
+extern Material objMaterial;
+}
 namespace gl {
   
 bool outlinemode=false;
@@ -61,8 +78,6 @@ using settings::getSetting;
 using settings::Setting;
 
 bool Iconify=false;
-bool Menu;
-bool Motion;
 bool ignorezoom;
 int Fitscreen;
 
@@ -82,7 +97,6 @@ bool queueScreen=false;
 
 int x0,y0;
 string Action;
-int MenuButton;
 
 double lastangle;
 Arcball arcball;
@@ -133,16 +147,45 @@ triple *Lights;
 double *Diffuse;
 double *Ambient;
 double *Specular;
-bool ViewportLighting;
 bool antialias;
 
 double Zoom;
 double Zoom0;
 double lastzoom;
 
-GLfloat Rotate[16];  
-GLUnurbs *nurb=NULL;
+using glm::dvec3;
+using glm::mat4;
+using glm::dmat4;
+using glm::value_ptr;
+using glm::translate;
 
+mat4 projMat;
+mat4 viewMat;
+
+dmat4 dviewMat;
+dmat4 drotateMat; 
+
+ModelView modelView;
+
+void updateModelViewData()
+{
+  // Like Fortran, OpenGL uses transposed (column-major) format!
+  dmat4 MV=glm::transpose(dviewMat);
+  dmat4 MVinv=glm::inverse(MV);
+
+  double* T=value_ptr(MV);
+  double* Tinv=value_ptr(MVinv);
+
+  for(int j=0; j < 16; ++j) {
+    modelView.T[j]=T[j];
+    modelView.Tinv[j]=Tinv[j];
+  }
+}
+
+
+GLint shaderProg,shaderProgColor;
+
+double *Rotate;
 void *glrenderWrapper(void *a);
 
 #ifdef HAVE_LIBOSMESA
@@ -186,52 +229,43 @@ inline T max(T a, T b)
   return (a > b) ? a : b;
 }
 
-void lighting()
+glm::vec4 vec4(triple v)
 {
-  for(size_t i=0; i < Nlights; ++i) {
-    GLenum index=GL_LIGHT0+i;
-    triple Lighti=Lights[i];
-    GLfloat position[]={(GLfloat) Lighti.getx(),(GLfloat) Lighti.gety(),
-			(GLfloat) Lighti.getz(),0.0};
-    glLightfv(index,GL_POSITION,position);
-  }
+  return glm::vec4(v.getx(),v.gety(),v.getz(),0);
 }
 
-void initlighting() 
+glm::vec4 vec4(double *v)
 {
-  glClearColor(Background[0],Background[1],Background[2],Background[3]);
-  glEnable(GL_LIGHTING);
-  glLightModeli(GL_LIGHT_MODEL_TWO_SIDE,getSetting<bool>("twosided"));
-    
-  for(size_t i=0; i < Nlights; ++i) {
-    GLenum index=GL_LIGHT0+i;
-    glEnable(index);
-    
-    size_t i4=4*i;
-    
-    GLfloat diffuse[]={(GLfloat) Diffuse[i4],(GLfloat) Diffuse[i4+1],
-		       (GLfloat) Diffuse[i4+2],(GLfloat) Diffuse[i4+3]};
-    glLightfv(index,GL_DIFFUSE,diffuse);
-    
-    GLfloat ambient[]={(GLfloat) Ambient[i4],(GLfloat) Ambient[i4+1],
-		       (GLfloat) Ambient[i4+2],(GLfloat) Ambient[i4+3]};
-    glLightfv(index,GL_AMBIENT,ambient);
-    
-    GLfloat specular[]={(GLfloat) Specular[i4],(GLfloat) Specular[i4+1],
-			(GLfloat) Specular[i4+2],(GLfloat) Specular[i4+3]};
-    glLightfv(index,GL_SPECULAR,specular);
-  }
-  
-  static size_t lastNlights=0;
-  for(size_t i=Nlights; i < lastNlights; ++i) {
-    GLenum index=GL_LIGHT0+i;
-    glDisable(index);
-  }
-  lastNlights=Nlights;
-  
-  if(ViewportLighting)
-    lighting();
+  return glm::vec4(v[0],v[1],v[2],v[3]);
 }
+
+void setLights()
+{  
+  struct Light
+  {
+    glm::vec4 direction;
+    glm::vec4 diffuse, ambient, specular; 
+    Light() {}
+    Light(triple direction, double *diffuse, double *ambient, double *specular)
+      : direction(vec4(direction)), diffuse(vec4(diffuse)),
+        ambient(vec4(ambient)), specular(vec4(specular)) {}
+  };
+
+  Light *lights=new Light[gl::Nlights];
+
+  for(size_t i=0; i < gl::Nlights; ++i) {
+    size_t i4=4*i;
+    lights[i]=Light(gl::Lights[i],gl::Diffuse+i4,gl::Ambient+i4,gl::Specular+i4);
+  }
+  
+  GLuint ssbo;
+  glGenBuffers(1,&ssbo);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER,ssbo);
+  glBufferData(GL_SHADER_STORAGE_BUFFER,sizeof(Light)*gl::Nlights,lights,
+               GL_STATIC_DRAW);
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER,1,ssbo);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+} 
 
 void setDimensions(int Width, int Height, double X, double Y)
 {
@@ -271,16 +305,24 @@ void setDimensions(int Width, int Height, double X, double Y)
   }
 }
 
+void frustum(GLdouble left, GLdouble right, GLdouble bottom,
+             GLdouble top, GLdouble nearVal, GLdouble farVal)
+{
+  projMat=glm::frustum(left,right,bottom,top,nearVal,farVal);
+}
+
+void ortho(GLdouble left, GLdouble right, GLdouble bottom,
+             GLdouble top, GLdouble nearVal, GLdouble farVal)
+{
+  projMat=glm::ortho(left,right,bottom,top,nearVal,farVal);
+}
+
 void setProjection()
 {
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
   setDimensions(Width,Height,X,Y);
-  if(orthographic)
-    glOrtho(xmin,xmax,ymin,ymax,-zmax,-zmin);
-  else
-    glFrustum(xmin,xmax,ymin,ymax,-zmax,-zmin);
-  glMatrixMode(GL_MODELVIEW);
+  if(orthographic) ortho(xmin,xmax,ymin,ymax,-zmax,-zmin);
+  else frustum(xmin,xmax,ymin,ymax,-zmax,-zmin);
+  
 #ifdef HAVE_LIBGLUT
   double arcballRadius=getSetting<double>("arcballradius");
   arcball.set_params(vec2(0.5*Width,0.5*Height),arcballRadius*Zoom);
@@ -300,8 +342,7 @@ void drawscene(double Width, double Height)
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  if(!ViewportLighting) 
-    lighting();
+  setLights();
     
   triple m(xmin,ymin,zmin);
   triple M(xmax,ymax,zmax);
@@ -310,13 +351,13 @@ void drawscene(double Width, double Height)
   double size2=hypot(Width,Height);
   
   // Render opaque objects
-  Picture->render(nurb,size2,m,M,perspective,Nlights,false);
+  Picture->render(size2,m,M,perspective,Nlights,false);
   
   // Enable transparency
   glDepthMask(GL_FALSE);
   
   // Render transparent objects
-  Picture->render(nurb,size2,m,M,perspective,Nlights,true);
+  Picture->render(size2,m,M,perspective,Nlights,true);
   glDepthMask(GL_TRUE);
 }
 
@@ -372,7 +413,7 @@ void Export()
                                            transform(0.0,0.0,w,0.0,0.0,h),
                                            antialias);
       pic.append(Image);
-      pic.shipout(NULL,Prefix,Format,0.0,false,View);
+      pic.shipout(NULL,Prefix,Format,false,View);
       delete Image;
       delete[] data;
     } 
@@ -412,11 +453,17 @@ void home()
     arcball.init();
   }
 #endif
-  glLoadIdentity();
-  glGetFloatv(GL_MODELVIEW_MATRIX,Rotate);
+  viewMat=mat4(1.0f);
+  
+  dviewMat=dmat4(1.0);
+  drotateMat=dmat4(1.0); 
+  
+  Rotate=value_ptr(drotateMat);
+  updateModelViewData();
+
   lastzoom=Zoom=Zoom0;
   setDimensions(Width,Height,0,0);
-  initlighting();
+  glClearColor(Background[0],Background[1],Background[2],Background[3]);
 }
 
 void nodisplay()
@@ -475,24 +522,17 @@ void mode()
 {
   switch(Mode) {
     case 0:
-      for(size_t i=0; i < Nlights; ++i) 
-        glEnable(GL_LIGHT0+i);
       outlinemode=false;
       glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
-      gluNurbsProperty(nurb,GLU_DISPLAY_MODE,GLU_FILL);
       ++Mode;
       break;
     case 1:
-      for(size_t i=0; i < Nlights; ++i) 
-        glDisable(GL_LIGHT0+i);
       outlinemode=true;
       glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
-      gluNurbsProperty(nurb,GLU_DISPLAY_MODE,GLU_OUTLINE_PATCH);
       ++Mode;
       break;
     case 2:
       outlinemode=false;
-      gluNurbsProperty(nurb,GLU_DISPLAY_MODE,GLU_OUTLINE_POLYGON);
       Mode=0;
       break;
   }
@@ -643,6 +683,7 @@ void display()
     if(!Animate) screen();
     queueScreen=false;
   }
+
   drawscene(Width,Height);
   glutSwapBuffers();
 #ifdef HAVE_PTHREAD
@@ -682,9 +723,14 @@ void update()
   lastzoom=Zoom;
   glLoadIdentity();
   double cz=0.5*(zmin+zmax);
-  glTranslatef(cx,cy,cz);
-  glMultMatrixf(Rotate);
-  glTranslatef(0,0,-cz);
+  
+  dviewMat=translate(translate(dmat4(1.0),dvec3(cx,cy,cz))*drotateMat,
+                     dvec3(0,0,-cz));
+
+  viewMat=mat4(dviewMat);
+  
+  updateModelViewData();
+  
   setProjection();
   glutPostRedisplay();
 }
@@ -762,30 +808,10 @@ void capzoom()
   
 }
 
-int menustatus=GLUT_MENU_NOT_IN_USE;
-
-void menuStatus(int status, int x, int y) 
-{
-  menustatus=status;
-}
-  
-void disableMenu() 
-{
-  Menu=false;
-  if(menustatus == GLUT_MENU_NOT_IN_USE)
-    glutDetachMenu(MenuButton);
-}
-
 void zoom(int x, int y)
 {
   if(ignorezoom) {ignorezoom=false; y0=y; return;}
   if(x > 0 && y > 0) {
-    if(Menu) {
-      disableMenu();
-      y0=y;
-      return;
-    }
-    Motion=true;
     double zoomFactor=getSetting<double>("zoomfactor");
     if(zoomFactor > 0.0) {
       double zoomStep=getSetting<double>("zoomstep");
@@ -821,21 +847,15 @@ void mousewheel(int wheel, int direction, int x, int y)
 void rotate(int x, int y)
 {
   if(x > 0 && y > 0) {
-    if(Menu) {
-      disableMenu();
-      arcball.mouse_down(x,Height-y);
-      return;
-    }
-    Motion=true;
     arcball.mouse_motion(x,Height-y,0,
                          Action == "rotateX", // X rotation only
                          Action == "rotateY");  // Y rotation only
 
     for(int i=0; i < 4; ++i) {
-      const vec4& roti=arcball.rot[i];
+      const ::vec4& roti=arcball.rot[i];
       int i4=4*i;
       for(int j=0; j < 4; ++j)
-        Rotate[i4+j]=roti[j];
+        value_ptr(drotateMat)[i4+j]=roti[j];
     }
     
     update();
@@ -849,9 +869,10 @@ double Degrees(int x, int y)
 
 void updateArcball() 
 {
+  Rotate=value_ptr(drotateMat);
   for(int i=0; i < 4; ++i) {
     int i4=4*i;
-    vec4& roti=arcball.rot[i];
+    ::vec4& roti=arcball.rot[i];
     for(int j=0; j < 4; ++j)
       roti[j]=Rotate[i4+j];
   }
@@ -860,39 +881,31 @@ void updateArcball()
 
 void rotateX(double step) 
 {
-  glLoadIdentity();
-  glRotatef(step,1,0,0);
-  glMultMatrixf(Rotate);
-  glGetFloatv(GL_MODELVIEW_MATRIX,Rotate);
+  dmat4 tmpRot(1.0);
+  tmpRot=glm::rotate(tmpRot,glm::radians(step),dvec3(1,0,0));
+  drotateMat=tmpRot*drotateMat;
   updateArcball();
 }
 
 void rotateY(double step) 
 {
-  glLoadIdentity();
-  glRotatef(step,0,1,0);
-  glMultMatrixf(Rotate);
-  glGetFloatv(GL_MODELVIEW_MATRIX,Rotate);
+  dmat4 tmpRot(1.0);
+  tmpRot=glm::rotate(tmpRot,glm::radians(step),dvec3(0,1,0));
+  drotateMat=tmpRot*drotateMat;
   updateArcball();
 }
 
 void rotateZ(double step) 
 {
-  glLoadIdentity();
-  glRotatef(step,0,0,1);
-  glMultMatrixf(Rotate);
-  glGetFloatv(GL_MODELVIEW_MATRIX,Rotate);
+  dmat4 tmpRot(1.0);
+  tmpRot=glm::rotate(tmpRot,glm::radians(step),dvec3(0,0,1));
+  drotateMat=tmpRot*drotateMat;
   updateArcball();
 }
 
 void rotateZ(int x, int y)
 {
   if(x > 0 && y > 0) {
-    if(Menu) {
-      disableMenu();
-      return;
-    }
-    Motion=true;
     double angle=Degrees(x,y);
     rotateZ(angle-lastangle);
     lastangle=angle;
@@ -967,7 +980,6 @@ string action(int button, int mod)
 
 void timeout(int)
 {
-  if(Menu) disableMenu();
 }
 
 void mouse(int button, int state, int x, int y)
@@ -975,19 +987,6 @@ void mouse(int button, int state, int x, int y)
   int mod=glutGetModifiers();
   string Action=action(button,mod);
 
-  if(!Menu) {
-    if(mod == 0 && state == GLUT_UP && !Motion && Action == "zoom/menu") {
-      MenuButton=button;
-      glutMotionFunc(NULL);
-      glutTimerFunc(getSetting<Int>("doubleclick"),timeout,0);
-      glutAttachMenu(button);
-      Menu=true;
-      return;
-    } else Motion=false;
-  }
-  
-  disableMenu();
-  
   if(Action == "zoomin") {
     glutMotionFunc(NULL);
     mousewheel(0,1,x,y);
@@ -1184,64 +1183,6 @@ void keyboard(unsigned char key, int x, int y)
   }
 }
  
-enum Menu {HOME,FITSCREEN,XSPIN,YSPIN,ZSPIN,STOP,MODE,EXPORT,CAMERA,
-           PLAY,STEP,REVERSE,QUIT};
-
-void menu(int choice)
-{
-  if(Menu) disableMenu();
-  ignorezoom=true;
-  Motion=true;
-  switch (choice) {
-    case HOME: // Home
-      home();
-      update();
-      break;
-    case FITSCREEN:
-      togglefitscreen();
-      break;
-    case XSPIN:
-      spinx();
-      break;
-    case YSPIN:
-      spiny();
-      break;
-    case ZSPIN:
-      spinz();
-      break;
-    case STOP:
-      idle();
-      break;
-    case MODE:
-      mode();
-      break;
-    case EXPORT:
-      queueExport=true;
-      break;
-    case CAMERA:
-      showCamera();
-      break;
-    case PLAY:
-      if(getSetting<bool>("reverse")) Animate=false;
-      Setting("reverse")=Step=false;
-      animate();
-      break;
-    case REVERSE:
-      if(!getSetting<bool>("reverse")) Animate=false;
-      Setting("reverse")=true;
-      Step=false;
-      animate();
-      break;
-    case STEP:
-      Step=true;
-      animate();
-      break;
-    case QUIT:
-      quit();
-      break;
-  }
-}
-
 void setosize()
 {
   oldWidth=(int) ceil(oWidth);
@@ -1267,6 +1208,7 @@ void exportHandler(int=0)
 }
 
 static bool glinitialize=true;
+static bool shaderinit=false;
 
 projection camera(bool user)
 {
@@ -1324,10 +1266,17 @@ void init()
   push_split(cmd,getSetting<string>("glOptions"));
   char **argv=args(cmd,true);
   int argc=cmd.size();
+
+  glutInitContextVersion(4,5);
+  glutInitContextProfile(GLUT_CORE_PROFILE);
+  //glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
+
   glutInit(&argc,argv);
-  
+  // NOTE: Change version if needed. 
+
   screenWidth=glutGet(GLUT_SCREEN_WIDTH);
   screenHeight=glutGet(GLUT_SCREEN_HEIGHT);
+  
 #endif
 }
 
@@ -1377,11 +1326,11 @@ void glrender(const string& prefix, const picture *pic, const string& format,
               const triple& m, const triple& M, const pair& shift, double *t,
               double *background, size_t nlights, triple *lights,
               double *diffuse, double *ambient, double *specular,
-              bool Viewportlighting, bool view, int oldpid)
+              bool view, int oldpid)
 {
   bool offscreen=getSetting<bool>("offscreen");
   Iconify=getSetting<bool>("iconify");
-  
+
 #ifdef HAVE_PTHREAD
   static bool initializedView=false;
 #endif  
@@ -1404,7 +1353,6 @@ void glrender(const string& prefix, const picture *pic, const string& format,
   Diffuse=diffuse;
   Ambient=ambient;
   Specular=specular;
-  ViewportLighting=Viewportlighting;
   View=view;
   Angle=angle*radians;
   Zoom0=zoom;
@@ -1421,8 +1369,6 @@ void glrender(const string& prefix, const picture *pic, const string& format,
   orthographic=Angle == 0.0;
   H=orthographic ? 0.0 : -tan(0.5*Angle)*zmax;
     
-  Menu=false;
-  Motion=true;
   ignorezoom=false;
   Mode=0;
   Xfactor=Yfactor=1.0;
@@ -1504,10 +1450,7 @@ void glrender(const string& prefix, const picture *pic, const string& format,
   
 #ifdef HAVE_LIBGLUT    
   unsigned int displaymode=GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH;
-  
-  int buttons[]={GLUT_LEFT_BUTTON,GLUT_MIDDLE_BUTTON,GLUT_RIGHT_BUTTON};
   string buttonnames[]={"left","middle","right"};
-  size_t nbuttons=sizeof(buttons)/sizeof(int);
 #endif  
   
 #ifdef HAVE_PTHREAD
@@ -1537,6 +1480,7 @@ void glrender(const string& prefix, const picture *pic, const string& format,
 
       ostringstream buf;
       int samples;
+
 #ifdef FREEGLUT
 #ifdef GLUT_INIT_MAJOR_VERSION
       while(true) {
@@ -1545,27 +1489,8 @@ void glrender(const string& prefix, const picture *pic, const string& format,
 #endif      
 #endif      
         string title=string(settings::PROGRAM)+": "+prefix;
-        string suffix;
-        for(size_t i=0; i < nbuttons; ++i) {
-          int button=buttons[i];
-          if(action(button,0) == "zoom/menu") {
-            suffix="Double click "+buttonnames[i]+" button for menu";
-            break;
-          }
-        }
-        if(suffix.empty()) {
-          for(size_t i=0; i < nbuttons; ++i) {
-            int button=buttons[i];
-            if(action(button,0) == "menu") {
-              suffix="Click "+buttonnames[i]+" button for menu";
-              break;
-            }
-          }
-        }
-      
-        title += " ["+suffix+"]";
-    
         window=glutCreateWindow(title.c_str());
+
         GLint samplebuf[1];
         glGetIntegerv(GL_SAMPLES,samplebuf);
         samples=samplebuf[0];
@@ -1599,9 +1524,21 @@ void glrender(const string& prefix, const picture *pic, const string& format,
   }
 #endif // HAVE_LIBGLUT
   initialized=true;
+
+  glewExperimental = GL_TRUE;
+
+  int result = glewInit();
+
+  if (result != GLEW_OK) {
+    cerr << "GLEW Error!" << endl;
+    exit(-1);
+  }
   
-  glMatrixMode(GL_MODELVIEW);
-    
+  if(!GLEW_VERSION_4_5) {
+    cerr << "OpenGL Version 4.5 not available!" << endl;
+    exit(-1);
+  }
+
   home();
     
 #ifdef HAVE_LIBGLUT
@@ -1616,35 +1553,33 @@ void glrender(const string& prefix, const picture *pic, const string& format,
     }
   }
 #endif
+
+  if(!shaderinit) {
+    shaderProg=glCreateProgram();
+    GLuint vertShader=createShaderFile(
+      locateFile("shaders/main.vs.glsl").c_str(),GL_VERTEX_SHADER);
+    GLuint fragShader=createShaderFile(
+      locateFile("shaders/main.fs.glsl").c_str(),GL_FRAGMENT_SHADER);
+    glAttachShader(shaderProg,vertShader);
+    glAttachShader(shaderProg,fragShader);
+    
+    shaderProgColor=glCreateProgram();
+    GLuint vertShaderCol=createShaderFile(locateFile("shaders/main.vs.glsl").c_str(),GL_VERTEX_SHADER,{"EXPLICIT_COLOR"});
+    GLuint fragShaderCol=createShaderFile(locateFile("shaders/main.fs.glsl").c_str(),GL_FRAGMENT_SHADER,{"EXPLICIT_COLOR"});
+    glAttachShader(shaderProgColor,vertShaderCol);
+    glAttachShader(shaderProgColor,fragShaderCol);
+
+    camp::noColorShader=shaderProg;
+    camp::colorShader=shaderProgColor;
+    shaderinit=true;
+    glLinkProgram(shaderProgColor);
+    glLinkProgram(shaderProg);
+  }
   
   glEnable(GL_BLEND);
   glEnable(GL_DEPTH_TEST);
-  glEnable(GL_MAP1_VERTEX_3);
-  glEnable(GL_MAP1_VERTEX_4);
-  glEnable(GL_MAP2_VERTEX_3);
-  glEnable(GL_MAP2_VERTEX_4);
-  glEnable(GL_MAP2_COLOR_4);
-  
+
   glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-  
-  if(nurb == NULL) {
-    nurb=gluNewNurbsRenderer();
-    if(nurb == NULL) 
-      outOfMemory();
-    gluNurbsProperty(nurb,GLU_SAMPLING_METHOD,GLU_PARAMETRIC_ERROR);
-    gluNurbsProperty(nurb,GLU_SAMPLING_TOLERANCE,0.5);
-    gluNurbsProperty(nurb,GLU_PARAMETRIC_TOLERANCE,1.0);
-    gluNurbsProperty(nurb,GLU_CULLING,GLU_TRUE);
-  
-    // The callback tessellation algorithm avoids artifacts at degenerate
-    // control points.
-    gluNurbsProperty(nurb,GLU_NURBS_MODE,GLU_NURBS_TESSELLATOR);
-    gluNurbsCallback(nurb,GLU_NURBS_BEGIN,(_GLUfuncptr) glBegin);
-    gluNurbsCallback(nurb,GLU_NURBS_VERTEX,(_GLUfuncptr) glVertex3fv);
-    gluNurbsCallback(nurb,GLU_NURBS_END,(_GLUfuncptr) glEnd);
-    gluNurbsCallback(nurb,GLU_NURBS_COLOR,(_GLUfuncptr) glColor4fv);
-  }
-  
   mode();
   
   if(View && !offscreen) {
@@ -1656,28 +1591,6 @@ void glrender(const string& prefix, const picture *pic, const string& format,
     glutKeyboardFunc(keyboard);
     glutMouseFunc(mouse);
   
-    glutCreateMenu(menu);
-    glutAddMenuEntry("(h) Home",HOME);
-    glutAddMenuEntry("(f) Fitscreen",FITSCREEN);
-    glutAddMenuEntry("(x) X spin",XSPIN);
-    glutAddMenuEntry("(y) Y spin",YSPIN);
-    glutAddMenuEntry("(z) Z spin",ZSPIN);
-    glutAddMenuEntry("(s) Stop",STOP);
-    glutAddMenuEntry("(m) Mode",MODE);
-    glutAddMenuEntry("(e) Export",EXPORT);
-    glutAddMenuEntry("(c) Camera",CAMERA);
-    glutAddMenuEntry("(p) Play",PLAY);
-    glutAddMenuEntry("(r) Reverse",REVERSE);
-    glutAddMenuEntry("( ) Step",STEP);
-    glutAddMenuEntry("(q) Quit" ,QUIT);
-    glutMenuStatusFunc(menuStatus);
-  
-    for(size_t i=0; i < nbuttons; ++i) {
-      int button=buttons[i];
-      if(action(button,0) == "menu")
-        glutAttachMenu(button);
-    }
-    
     glutMainLoop();
 #endif // HAVE_LIBGLUT
   } else {
@@ -1701,5 +1614,24 @@ void glrender(const string& prefix, const picture *pic, const string& format,
 }
 
 } // namespace gl
+
+namespace camp {
+
+void setUniforms(GLint shader)
+{
+  glUniformMatrix4fv(glGetUniformLocation(shader,"viewMat"),1,GL_FALSE, value_ptr(gl::viewMat));
+  glUniformMatrix4fv(glGetUniformLocation(shader,"projMat"),1,GL_FALSE, value_ptr(gl::projMat));
+
+  // materials 
+  glUniform4fv(glGetUniformLocation(shader,"materialData.diffuse"),1,value_ptr(objMaterial.diffuse));
+  glUniform4fv(glGetUniformLocation(shader,"materialData.specular"),1,value_ptr(objMaterial.specular));
+  glUniform4fv(glGetUniformLocation(shader,"materialData.ambient"),1,value_ptr(objMaterial.ambient));
+  glUniform4fv(glGetUniformLocation(shader,"materialData.emissive"),1,value_ptr(objMaterial.emission));
+
+  glUniform1f(glGetUniformLocation(shader,"materialData.shininess"),objMaterial.shininess);
+  glUniform1i(glGetUniformLocation(shader,"Nlights"),gl::Nlights);
+}
+
+}
 
 #endif

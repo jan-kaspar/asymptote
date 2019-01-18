@@ -19,6 +19,7 @@ extern int sign;
 extern const double Fuzz;
 extern const double Fuzz2;
 
+
 struct BezierPatch
 {
   static std::vector<GLfloat> buffer;
@@ -33,6 +34,17 @@ struct BezierPatch
   static GLuint ntvertices;
   static GLuint Nvertices;
   static GLuint Ntvertices;
+
+  // 0 - vbo
+  // 1 - Vbo
+  // 2 - tvbo
+  // 3 - tVbo
+  static std::array<GLuint,4> vertsBufferIndex; 
+
+  // ebo in the same order. 
+  static std::array<GLuint,4> elemBufferIndex; 
+  
+
   std::vector<GLuint> *pindices;
   triple u,v,w;
   double epsilon;
@@ -189,6 +201,24 @@ struct BezierPatch
       Y < Min.gety() || y > Max.gety() ||
       Z < Min.getz() || z > Max.getz();
   }
+
+  void createBuffers() {
+    glGenBuffers(4,vertsBufferIndex.data());
+    glGenBuffers(4,elemBufferIndex.data());
+
+    //vbo
+    
+    registerBuffer(buffer,vertsBufferIndex[0]);
+    registerBuffer(Buffer,vertsBufferIndex[1]);
+    registerBuffer(tbuffer,vertsBufferIndex[2]);
+    registerBuffer(tBuffer,vertsBufferIndex[3]);
+
+    //ebo
+    registerBuffer(indices,elemBufferIndex[0]);
+    registerBuffer(Indices,elemBufferIndex[1]);
+    registerBuffer(tindices,elemBufferIndex[2]);
+    registerBuffer(tIndices,elemBufferIndex[3]);
+  }
   
   void clear() {
     nvertices=ntvertices=Nvertices=Ntvertices=0;
@@ -200,6 +230,9 @@ struct BezierPatch
     tindices.clear();
     tBuffer.clear();
     tIndices.clear();
+    
+    glDeleteBuffers(4,vertsBufferIndex.data());
+    glDeleteBuffers(4,elemBufferIndex.data());
   }
   
   ~BezierPatch() {}
@@ -252,6 +285,20 @@ public:
               bool flat0, bool flat1, bool flat2,
               GLfloat *C0=NULL, GLfloat *C1=NULL, GLfloat *C2=NULL);
   void render(const triple *p, bool straight, GLfloat *c0=NULL);
+};
+
+
+struct Triangles
+{
+  static GLuint vertsBufferIndex;
+  static GLuint elemBufferIndex;
+  
+  Triangles() {}
+  ~Triangles() {}
+  
+  void draw(size_t nP, triple* P, size_t nN, triple* N,
+            size_t nC, prc::RGBAColour* C, size_t nI,
+            uint32_t (*PI)[3], uint32_t (*NI)[3], uint32_t (*CI)[3]);
 };
 
 

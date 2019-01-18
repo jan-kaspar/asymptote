@@ -22,8 +22,10 @@
 
 namespace camp {
 
-extern double T[3]; // z-component of current transform
-  
+//extern double Tx[3]; // x-component of current transform
+//extern double Ty[3]; // y-component of current transform
+extern double* Tz; // z-component of current transform
+
 static const double pixel=1.0; // Adaptive rendering constant.
 
 // Return one-sixth of the second derivative of the Bezier curve defined
@@ -119,6 +121,11 @@ typedef mem::vector<groupmap> groupsmap;
 class drawElement : public gc
 {
 public:
+  string KEY;
+  
+  drawElement(const string& key="") : KEY(key == "" ? processData().KEY : key)
+  {}
+  
   virtual ~drawElement() {}
   
   static pen lastpen;  
@@ -157,6 +164,8 @@ public:
 
   virtual bool islabel() {return false;}
 
+  virtual bool isnewpage() {return false;}
+  
   virtual bool islayer() {return false;}
 
   virtual bool is3D() {return false;}
@@ -200,8 +209,7 @@ public:
   virtual void displacement() {}
 
   // Render with OpenGL
-  virtual void render(GLUnurbs *nurb, double size2, 
-                      const triple& Min, const triple& Max,
+  virtual void render(double size2, const triple& Min, const triple& Max,
                       double perspective, bool lighton, bool transparent) {}
 
   // Transform as part of a picture.
@@ -230,7 +238,8 @@ public:
     copyArray4x4C(T,&t);
   }
 
-  drawElementLC(const double* t, const drawElementLC *s) : T(NULL) {
+  drawElementLC(const double* t, const drawElementLC *s) : 
+    drawElement(s->KEY), T(NULL) {
     multiplyTransform3(T,t,s->T);
   }
 
@@ -363,10 +372,6 @@ public:
   }
   
   void strokepath(psfile *out) {
-    // strokepath and evenodd are incompatible
-    static pen zerowinding=pen((FillRule) ZEROWINDING);
-    pentype=pentype+zerowinding;
-    out->setpen(pentype);
     out->strokepath();
   }
   
@@ -394,6 +399,16 @@ public:
   }
 };
  
+template<class T>
+void registerBuffer(std::vector<T>& buffervector, GLuint bufferIndex) {
+  if (!buffervector.empty()) {
+    glBindBuffer(GL_ARRAY_BUFFER,bufferIndex);
+    glBufferData(GL_ARRAY_BUFFER,sizeof(T)*buffervector.size(),
+                 buffervector.data(),GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER,0);
+  }
+}
+
 }
 
 GC_DECLARE_PTRFREE(camp::box);

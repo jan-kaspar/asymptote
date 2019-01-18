@@ -3,7 +3,7 @@
 # this file.
 
 AC_PREREQ(2)
-AC_INIT([Asymptote],[2.42git],[http://sourceforge.net/projects/asymptote])
+AC_INIT([Asymptote],[2.48git],[http://sourceforge.net/projects/asymptote])
 VERSION=$PACKAGE_VERSION
 AC_SUBST(VERSION)
 m4_include([ax_pthread.m4])
@@ -13,6 +13,7 @@ test "$CXXFLAGS" || CXXFLAGS="-g -O3 -std=c++17"
 test "$CFLAGS" || CFLAGS="-g -O3"
 
 AC_C_BIGENDIAN
+AC_CANONICAL_HOST
 
 test "$prefix" = NONE && prefix=/usr/local
 Datadir=$datadir
@@ -54,7 +55,7 @@ fi
 ])
 
 AC_CHECK_PROGS(TEXI2DVI,[texi2dvi],
-[echo texi2dvi is missing! Please put http://asymptote.sourceforge.net/asymptote.pdf in the doc directory, touch doc/asymptote.pdf, and run configure again; exit 1;])
+[@echo \*\*\*\*\*\*\*\*\*\* Please install texi2dvi or put http://asymptote.sourceforge.net/asymptote.pdf in the doc directory: cannot execute texi2dvi])
 
 AC_SUBST(TEXI2DVI)
 
@@ -123,8 +124,17 @@ AC_CHECK_HEADER(unordered_map,AC_DEFINE(HAVE_UNORDERED_MAP,1,
 			      [Define to 1 if you have tr1/unordered_map]),
 	[AC_CHECK_HEADER(ext/hash_map,,OPTIONS=$OPTIONS"-DNOHASH ")])])
 
-GCVERSION=7.6.0
-ATOMICVERSION=7.4.4
+case "${host_os}" in
+    darwin*)
+      GCVERSION=8.0.2
+      ATOMICVERSION=7.6.8
+        ;;
+   *)
+      GCVERSION=8.0.2
+      ATOMICVERSION=7.6.8
+        ;;
+esac
+
 GCFILE=gc-$GCVERSION
 ac_cv_use_gc="system"
 
@@ -144,14 +154,15 @@ enable system Boehm garbage collector)]
 OPTIONS="-D_FILE_OFFSET_BITS=64 "
 GCLIB=
 GCPPLIB=
+INCL="-I."
 GCNAME="Boehm Garbage Collector"
-GCOPTIONS="--disable-shared --enable-large-config"
+GCOPTIONS="--disable-shared"
 if test "x$ac_cv_use_gc" != "xno" ; then
    OPTIONS=$OPTIONS"-DUSEGC "
    case _$ac_cv_use_gc in
    _|_system|_*[[\\/]]*)
       if test "x$ac_cv_use_gc" = "xsystem" ; then
-         INCL="-I$prefix/include/gc -I/usr/include/gc"
+         INCL="-I. -I$prefix/include/gc -I/usr/include/gc"
          LIBS=$LIBS"-L$prefix/lib " 
       else 
          INCL="-I$ac_cv_use_gc/include/gc"
@@ -164,12 +175,12 @@ if test "x$ac_cv_use_gc" != "xno" ; then
 	  LIBS=$LIBS"-lgc "
 	  AC_MSG_NOTICE([enabling system $GCNAME])],[
         GCDIR=$GCFILE
-        INCL="-I\$(GC)/include"
+        INCL="-I. -I\$(GC)/include"
 	GCLIB="\$(GC)/.libs/libgc.a"
 	AC_MSG_NOTICE($GCNAME library not found)]),
       GCDIR=$GCFILE
       GCLIB="\$(GC)/.libs/libgc.a"
-      INCL="-I\$(GC)/include"
+      INCL="-I. -I\$(GC)/include"
       AC_MSG_NOTICE($GCNAME header file not found))
       CPPFLAGS=$CPPFLAGS_SAVE
       ;;
@@ -179,7 +190,7 @@ if test "x$ac_cv_use_gc" != "xno" ; then
       GCDIR=$GCFILE
       AC_MSG_NOTICE([enabling local $GCNAME $GCDIR])
       GCLIB="\$(GC)/.libs/libgc.a"
-      INCL="-I\$(GC)/include"
+      INCL="-I. -I\$(GC)/include"
       ;;
    esac
 else
@@ -208,9 +219,12 @@ AC_ARG_ENABLE(gc-full-debug,
  fi
 ])
 
+#INCL=$INCL" -I/usr/include/tirpc"
+
 if test "$OSTYPE" = "msdos"; then
-INCL=$INCL" -I/usr/include/tirpc"
 CPPFLAGS=$CPPFLAGS" -D__MSDOS__ $INCL"
+else
+CPPFLAGS=$CPPFLAGS" $INCL"
 fi
 
 AC_CHECK_FUNC(getopt_long_only, AC_DEFINE(HAVE_GNU_GETOPT_H, 1,
@@ -267,11 +281,13 @@ fi
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS([fenv.h stddef.h libintl.h])
 AC_CHECK_HEADERS(fpu_control.h)
+AC_CHECK_FUNCS([feenableexcept])
+
 
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([#include "xstream.h"])],
-                   [AC_SEARCH_LIBS([xdrstdio_create],[nsl rpc])
+                   [AC_SEARCH_LIBS([xdrstdio_create],[nsl tirpc])
 		    AC_DEFINE(HAVE_RPC_RPC_H, 1,
-		   [Define if you have a working <rpc/rpc.h> header file])],
+		   [Define if you have a working <tirpc/rpc/rpc.h> header file])],
    AC_MSG_WARN([*** Broken rpc headers; XDR support disabled ***]))
 
 AC_ARG_ENABLE(gsl,
@@ -299,7 +315,7 @@ AC_ARG_ENABLE(gl,
 [AS_HELP_STRING(--enable-gl[[[=yes]]],enable OpenGL Library)])
 
 AC_ARG_ENABLE(offscreen,
-[AS_HELP_STRING(--enable-offscreen[[[=yes]]],enable offscreen rendering using OSMesa library)])
+[AS_HELP_STRING(--enable-offscreen[[[=no]]],enable experimental offscreen rendering using OSMesa library)])
 
 if test "x$enable_gl" != "xno"; then
 case "$OSTYPE" in
@@ -309,9 +325,6 @@ case "$OSTYPE" in
 		     [Define if you have the `opengl32' library (-lopengl32).])
 			     LIBS=$LIBS"-lopengl32 "],
 				   AC_MSG_NOTICE([*** Could not find libopengl32: will compile without OpenGL support ***]))
-	    AC_CHECK_LIB([GLU], [gluNewNurbsRenderer],[AC_DEFINE(HAVE_LIBGLU, 1,
-		              [Define to 1 if you have the `glu32' library (-lglu32).]) LIBS=$LIBS"-lglu32 "],
-	    AC_MSG_NOTICE([*** Could not find libglu32: will compile without OpenGL support ***]))
 	       	       AC_CHECK_HEADER(GL/glut.h,
 				  [AC_DEFINE(HAVE_LIBGLUT, 1,
 		     [Define if you have the `freeglut' library (-lfreeglut).])
@@ -319,34 +332,20 @@ case "$OSTYPE" in
 				   AC_MSG_NOTICE([*** Could not find libfreeglut: will compile without GLUT support ***]))
         ;;                                 
      darwin*) 
+              LIBS=$LIBS"-lgccpp "
               AC_CHECK_HEADER(OpenGL/gl.h,
                              [AC_DEFINE(HAVE_LIBGL, 1,
 		             [Define if you have the `OpenGL' library.])])
-              AC_CHECK_HEADER(OpenGL/glu.h,
-                              [AC_DEFINE(HAVE_LIBGLU, 1,
-			      [Define if you have the `GLU' library.])])
               AC_CHECK_HEADER(GLUT/glut.h, [AC_DEFINE(HAVE_LIBGLUT, 1,
 		   [Define if you have the `GLUT' library.])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#ifndef GLU_TESS_CALLBACK_TRIPLEDOT
-typedef GLvoid (* _GLUfuncptr)(...);
-void f(void) {
-  gluNurbsCallback(gluNewNurbsRenderer(),GLU_NURBS_BEGIN,(_GLUfuncptr) glBegin);
-}
-#endif
-])],[AC_DEFINE(GLU_TESS_CALLBACK_TRIPLEDOT, 1, [Define if gluNurbsCallback expects a variadic function.])])
-			   LIBS=$LIBS"-framework GLUT -framework OpenGL -framework Cocoa"],
+			   LIBS=$LIBS"-framework GLUT -framework OpenGL -framework Cocoa "],
 				 AC_MSG_NOTICE([*** Could not find glut: will compile without GLUT support ***]))
         ;;                                 
      *) AC_CHECK_LIB([GL], [glDepthMask])
-        AC_CHECK_LIB([GLU], [gluNewNurbsRenderer],,
-	             AC_MSG_NOTICE([*** Could not find libGLU: will compile without OpenGL support ***]))
 	  AC_CHECK_LIB([glut], [glutMainLoop],,
 		       AC_MSG_NOTICE([*** Could not find libglut: will compile without GLUT support ***]))
 esac
-   if test "x$enable_offscreen" != "xno"; then
+   if test "x$enable_offscreen" == "xyes"; then
            AC_CHECK_LIB([OSMesa],OSMesaCreateContext,,
 			AC_MSG_NOTICE([*** Could not find libOSMesa: will compile without offscreen rendering support ***]))
    fi
@@ -382,7 +381,7 @@ then
 	root_config="$with_root/bin/root-config"
 	AC_CHECK_FILE([$root_config],
 		[AC_DEFINE([HAVE_ROOT], [1], [if ROOT was found])
-			INCL="$INCL -I`$root_config --incdir`"
+			CPPFLAGS="$CPPFLAGS -I`$root_config --incdir`"
 			LIBS="$LIBS `$root_config --libs`"]
 			FILES_EXTRA="root"
 			RUNTIME_FILES_EXTRA="runroot"
