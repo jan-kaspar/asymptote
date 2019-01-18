@@ -8,7 +8,7 @@ VERSION=$PACKAGE_VERSION
 AC_SUBST(VERSION)
 m4_include([ax_pthread.m4])
 
-test "$CXXFLAGS" || CXXFLAGS="-g -O3 -std=c++1y"
+test "$CXXFLAGS" || CXXFLAGS="-g -O3 -std=c++17"
 
 test "$CFLAGS" || CFLAGS="-g -O3"
 

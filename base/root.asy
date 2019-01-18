@@ -1,8 +1,8 @@
 /****************************************************************************
 *
 * This is a part of the "ROOT extension to Asymptote" project.
-* Authors: 
-*	Jan Kašpar (jan.kaspar@gmail.com) 
+* Authors:
+*	Jan Kašpar (jan.kaspar@gmail.com)
 *
 * \brief Macros to draw ROOT objects.
 ****************************************************************************/
@@ -71,16 +71,16 @@ real TH1_y_def = -1.;
  *  - "eb"		to draw bin error bars
  *  - "ec"		to draw error contour
 
- *  - "L", "l"	equivalent to lE,lM,lR 
- *  - "lE"		adds the number of entries to the legend 
- *  - "lM"		adds the mean to the legend 
- *  - "lR"		adds the RMS to the legend 
+ *  - "L", "l"	equivalent to lE,lM,lR
+ *  - "lE"		adds the number of entries to the legend
+ *  - "lM"		adds the mean to the legend
+ *  - "lR"		adds the RMS to the legend
  **/
 void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen, marker _marker, Label _legend)
 {
 	if (options == "def")
 		options = "vl,ec";
-	
+
 	OptionList optList = StrToOptList(options);
 
 	bool vertLines = TestOption(optList, "vl");
@@ -97,14 +97,14 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 		horLines = false;
 		vertLines = false;
 	}
-	
+
 	// normalization factor
 	real fac = 1;
 	if (TestOption(optList, "N", "n"))
 	{
 		// TODO: first needs to fix the bug in root.cc
-		//real integral = obj.rExec("Integral", "width");
-		real integral = 0;
+		real integral = obj.rExec("Integral", "width");
+		//real integral = 0;
 		if (integral > 0)
 			fac = 1/integral;
 		else
@@ -113,7 +113,7 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 
 	// draw the histogram
 	guide bit;
-	int N = obj.iExec("GetNbinsX");	
+	int N = obj.iExec("GetNbinsX");
 	real prev_v = inf;
 	for (int i = 1; i <= N; ++i)
 	{
@@ -121,10 +121,10 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 		real w = obj.rExec("GetBinWidth", i);
 		real c = l+w/2;
 		real r = l+w;
-		
+
 		real v = obj.rExec("GetBinContent", i) * fac;
 		real e = obj.rExec("GetBinError", i) * fac;
-		
+
 		real vMin = v-e, vCnt = v, vMax = v+e;
 
 		// out-of draw range? discard zeros?
@@ -151,7 +151,7 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 				continue;
 			}
 		}
-		
+
 		// add line segment(s)
 		if (centLines)
 			bit = bit--Scale((c, vCnt));
@@ -165,14 +165,14 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 				draw(tr*bit, _pen, _marker);
 			bit = nullpath;
 		}
-		
+
 		prev_v = vCnt;
-		
+
 		// valid error?
 		if (pic.scale.y.scale.logarithmic && vMin <= 0)
 			vMin = vCnt;
-		
-		// error contours	
+
+		// error contours
 		if (errCont)
 			filldraw(tr*(Scale((l, vMin))--Scale((r, vMin))--Scale((r, vMax))--Scale((l, vMax))--cycle),
 				_pen+opacity(TH1_errorContourOpacity), nullpen);
@@ -184,7 +184,7 @@ void drawTH1(transform tr, picture pic, RootObject obj, string options, pen _pen
 
 	if (size(bit) > 0)
 		draw(tr*bit, _pen, _marker);
-	
+
 	// add legend entry
 	if (_legend.s == "" && useDefaultLabel)
 		_legend = obj.sExec("GetName");
@@ -263,10 +263,10 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 
 	bool palette = false;
 	if (TestOption(optList, "P", "p")) palette = true;
-	
+
 	bool opacity = false;
 	if (TestOption(optList, "O", "o")) opacity = true;
-	
+
 	bool paletteBar = false;
 	if (TestOption(optList, "bar")) paletteBar = true;
 
@@ -323,9 +323,9 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 				// apply picture's scale
 				if (pic.scale.z.scale.logarithmic && c <= 0)
 					continue;
-				else 
+				else
 					c = pic.scale.z.T(c);
-	
+
 				c_max = max(c_max, c);
 				c_min = min(c_min, c);
 			}
@@ -340,7 +340,8 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 			// set some scale to permit plotting it
 			c_min = -1;
 		} else {
-			write("ERROR in drawTH2 > "+format("c_min=%.2E, ", c_min)+format("c_max=%.2E, ", c_max));
+			write("ERROR in drawTH2 > "+format("c_min=%.2E, ", c_min)+format("c_max=%.2E", c_max));
+			return;
 		}
 	}
 
@@ -356,7 +357,7 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 		for (int yi = yi_min; yi <= yi_max; ++yi)
 		{
 			real c = obj.rExec("GetBinContent", xi, yi);
-			
+
 			// skip NAN etc.
 			if (c != c)
 				continue;
@@ -364,19 +365,19 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 			// skip empty cells?
 			if (c == 0)
 				continue;
-			
+
 			if (pic.scale.z.scale.logarithmic && c <= 0)
 				continue;
-			else 
+			else
 				c = pic.scale.z.T(c);
-			
+
 			// effective content: value between 0 and 1
 			real ec = (c - c_min) / (c_max - c_min);
 
 			// skip bins outside the z-range selection
 			if (ec < 0 || ec > 1)
 				continue;
-			
+
 			// bin geometry
 			real cx = xAx.rExec("GetBinCenter", xi);
 			real cy = yAx.rExec("GetBinCenter", yi);
@@ -398,7 +399,7 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 
 			int idx = (int) (ec * (TH2_palette.length - 1));
 			fillPen = (palette) ? TH2_palette[idx] : _pen;
-			
+
 			if (opacity)
 				fillPen += opacity(ec);
 
@@ -412,7 +413,7 @@ void drawTH2(transform tr, picture pic, RootObject obj, string options, pen _pen
 		bounds B;
 		B.min = pic.scale.z.Tinv(c_min);
 		B.max = pic.scale.z.Tinv(c_max);
-		
+
 		// need a local copy of all parameters
 		string zLabel = TH2_zLabel;
 		pen palette[] = TH2_palette;
@@ -480,31 +481,32 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 	if (options == "def")
 		options = "l";
 
-	OptionList optList = StrToOptList(options);	
+	OptionList optList = StrToOptList(options);
 
 	// default legend properties
 	pen l_pen = nullpen;
-	marker l_marker; 
+	marker l_marker;
 
 	// number of points
 	int N = obj.iExec("GetN");
-	
+
 	bool drawPoints = TestOption(optList, "P", "p");
 	bool drawDots = TestOption(optList, "D", "d");
 	bool drawLine = TestOption(optList, "L", "l");
 
 	bool hasErrors = obj.InheritsFrom("TGraphErrors");
-	bool errorBars_x = hasErrors;
-	bool errorBars_y = hasErrors;
+	bool hasErrorsAsym = obj.InheritsFrom("TGraphAsymmErrors");
+	bool errorBars_x = hasErrors || hasErrorsAsym;
+	bool errorBars_y = hasErrors || hasErrorsAsym;
 	bool errorContour = false;
 	bool discardZeros = false;
 
 	if (TestOption(optList, "ieb"))
 		errorBars_x = errorBars_y = false;
-	
+
 	if (TestOption(optList, "iebx"))
 		errorBars_x = false;
-	
+
 	if (TestOption(optList, "ieby"))
 		errorBars_y = false;
 
@@ -520,7 +522,7 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 	pen ebp = _pen;
 	if (TestOption(optList, "sebc"))
 		ebp = TGraph_errorBarPen;
-		
+
 	// go through all points
 	int j = 0, i_eff;
 	guide p, uep, bep;
@@ -540,7 +542,7 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 		real[] x = {0};
 		real[] y = {0};
 		obj.vExec("GetPoint", i, x, y);
-	
+
 		// skip points outside selected range
 		if (x[0] < TGraph_x_min || x[0] > TGraph_x_max)
 			continue;
@@ -551,13 +553,21 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 		if (discardZeros && y[0] == 0)
 			continue;
 
-		real ey, ex;
+		real ex_mi, ex_pl, ey_mi, ey_pl;
 		if (hasErrors)
 		{
-			ex = obj.rExec("GetErrorX", i);
-			ey = obj.rExec("GetErrorY", i);
+			ex_mi = ex_pl = obj.rExec("GetErrorX", i);
+			ey_mi = ey_pl = obj.rExec("GetErrorY", i);
 		}
-	
+
+		if (hasErrorsAsym)
+		{
+			ex_mi = obj.rExec("GetErrorXlow", i);
+			ex_pl = obj.rExec("GetErrorXhigh", i);
+			ey_mi = obj.rExec("GetErrorYlow", i);
+			ey_pl = obj.rExec("GetErrorYhigh", i);
+		}
+
 		// avoid NANs, floating point exceptions in log scale, etc.
 		if (y[0] != y[0] || x[0] != x[0])
 			continue;
@@ -568,11 +578,13 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 
 		if (errorBars_x || errorBars_y || errorContour)
 		{
-			if (ey != ey || ex != ex) 
+			if (ey_mi != ey_mi || ex_mi != ex_mi || ey_pl != ey_pl || ex_pl != ex_pl)
 				continue;
-			if (ex == inf || ex == -inf || ey == inf || ey == -inf)
+			if (ex_mi == inf || ex_mi == -inf || ey_mi == inf || ey_mi == -inf)
 				continue;
-			if ((pic.scale.x.scale.logarithmic && x[0]-ex <= 0) || (pic.scale.y.scale.logarithmic && y[0]-ey <= 0))
+			if (ex_pl == inf || ex_pl == -inf || ey_pl == inf || ey_pl == -inf)
+				continue;
+			if ((pic.scale.x.scale.logarithmic && x[0]-ex_mi <= 0) || (pic.scale.y.scale.logarithmic && y[0]-ey_mi <= 0))
 				continue;
 		}
 
@@ -584,21 +596,23 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 
 			if (drawDots)
 				dot(pic, tr*Scale((x[0], y[0])), _pen);
-				
+
 			if (drawPoints || drawDots)
 			{
-				if (errorBars_x && ex > 0)
-					draw(tr*(Scale((x[0]-ex, y[0]))--Scale((x[0]+ex, y[0]))), ebp, TGraph_errorBar);
-				if (errorBars_y && ey > 0)
-					draw(tr*(Scale((x[0], y[0]-ey))--Scale((x[0], y[0]+ey))), ebp, TGraph_errorBar);
+				if (errorBars_x)
+					draw(tr*(Scale((x[0]-ex_mi, y[0]))--Scale((x[0]+ex_pl, y[0]))), ebp, TGraph_errorBar);
+				if (errorBars_y)
+					draw(tr*(Scale((x[0], y[0]-ey_mi))--Scale((x[0], y[0]+ey_pl))), ebp, TGraph_errorBar);
 			}
-			
+
 			if (errorContour)
 			{
-				uep = uep--Scale((x[0], y[0]+ey));
-				bep = bep--Scale((x[0], y[0]-ey));
+				uep = uep--Scale((x[0]-ex_mi, y[0]+ey_pl));
+				uep = uep--Scale((x[0]+ex_pl, y[0]+ey_pl));
+				bep = bep--Scale((x[0]-ex_mi, y[0]-ey_mi));
+				bep = bep--Scale((x[0]+ex_pl, y[0]-ey_mi));
 			}
-			
+
 			if (drawLine)
 				p = p--Scale((x[0], y[0]));
 
@@ -616,19 +630,22 @@ void drawTGraph(transform tr, picture pic, RootObject obj, string options, pen _
 
 	if (drawPoints)
 		l_marker = _marker;
-	
+
 	if (drawLine)
 	{
 		draw(pic, tr*p, _pen);
 		l_pen = _pen;
 	}
 
+	if (hasErrors)
+		l_pen = _pen;
+
 	// add legend entry
 	if (_legend.s == "" && useDefaultLabel)
 		_legend = obj.sExec("GetName");
 
 	if (_legend.s != "")
-	{ 
+	{
 		Legend bla;
 		bla.operator init(_legend.s, l_pen, l_marker.f);
 		pic.legend.push(bla);
@@ -713,7 +730,7 @@ void drawTGraph2D(transform tr, picture pic, RootObject obj, string options, pen
 				v += step;
 			}
 		}
-		
+
 		// generate contours
 		guide contours[][] = contour(points, values, TGraph2D_contourValues);
 
@@ -741,7 +758,7 @@ void drawTGraph2D(transform tr, picture pic, RootObject obj, string options, pen
 		_legend = obj.sExec("GetName");
 
 	if (_legend.s != "")
-	{ 
+	{
 		Legend bla;
 		bla.operator init(_legend.s, _pen);
 		pic.legend.push(bla);
@@ -777,7 +794,7 @@ void drawTF1(transform tr, picture pic, RootObject obj, string options, pen _pen
 	real xMin[] = {0.};
 	real xMax[] = {0.};
 	obj.vExec("GetRange", xMin, xMax);
-	
+
 	if (TF1_x_min != -inf)
 		xMin[0] = TF1_x_min;
 
@@ -804,7 +821,7 @@ void drawTF1(transform tr, picture pic, RootObject obj, string options, pen _pen
  *  - TGraph2D
  *  - TF1
  **/
-void draw(transform tr = identity(), picture pic=currentpicture, RootObject obj, string options="def", pen pen=currentpen, 
+void draw(transform tr = identity(), picture pic=currentpicture, RootObject obj, string options="def", pen pen=currentpen,
 	marker marker=nomarker, Label legend="")
 {
 	if (!obj.valid)

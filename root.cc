@@ -713,9 +713,12 @@ int RootObject::Exec(vm::stack *Stack, void *result)
 			//auto t = get<mem::string>(it);
 			//printf("[%s]\n", t.c_str());
 
-			mem::string *str = (mem::string *) it.p;
-			parameters.push_back((void *) str->c_str());
-			signature += "const char*";
+			const char *buf = "width";
+
+			//mem::string *str = (mem::string *) it.p;
+			//parameters.push_back((void *) str->c_str());
+			parameters.push_back((void *) &buf);
+			signature += "char*";
 			continue;
 		}
 		

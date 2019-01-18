@@ -431,6 +431,15 @@ pad NewPad(	bool drawAxes = true, bool drawGridX = drawGridDef, bool drawGridY =
 
 //----------------------------------------------------------------------------------------------------
 
+pad NewPadLabel(string label)
+{
+	NewPad(false);
+	label("{\SetFontSizesXX " + label + "}");
+	return currentpad;
+}
+
+//----------------------------------------------------------------------------------------------------
+
 /**
  *\brief Sets x and y axes labels.
  **/
@@ -610,7 +619,7 @@ frame PadToFrame(pad p, pair alignment)
  *\param p The pen to draw a frame around the final figure.
  *\param filltype The bounding box around the final figure is filled with this type.
  **/
-void GShipout(string prefix=defaultfilename, pair alignment=(0, 0), real hSkip=1cm, real vSkip=1cm, real margin=5mm, 
+void GShipout(string prefix=defaultfilename, pair alignment=(0, 0), real hSkip=1cm, real vSkip=1cm, real margin=1mm,
 	pen p = nullpen, filltype filltype = Fill(white))
 {
 	if (verbose > 0)
@@ -1015,21 +1024,35 @@ picture LegendColumns(Legend[] items, int columns, real lineLength, real maxColW
 	lineLength = maxSymbSize;
 	*/
 
+	// do automatic search for break points?
+	bool automaticBreaks = (columns > 1);
+	int breaks[];				// indexes of items after which new column shall start
+
 	// make legend item pictures
 	picture itemPic[];
 	real incH[];	// incremental array of heights
 	incH[0] = 0.;
 	for (int i = 0; i < N; ++i)
 	{
-		picture p = LegendItem(items[i], lineLength, maxColWidth);
-		itemPic.push(p);
-		incH[i+1] = incH[i] + size(p).y;
+		int size = itemPic.length;
+
+		if (items[i].label == "\break")
+		{
+			automaticBreaks = false;
+			breaks.push(size);
+		} else {
+			picture p = LegendItem(items[i], lineLength, maxColWidth);
+			itemPic.push(p);
+			incH[size+1] = incH[size] + size(p).y;
+		}
 	}
 
+	// redefine N: after removal of break items
+	N = itemPic.length;
+
 	// find optimal column breaks: to minimise the total height of all the columns
-	int breaks[];				// indexes of items after which new column shall start
 	real vSkips_stretched[];	// adjusted vSkip per column
-	if (columns > 1)
+	if (automaticBreaks)
 	{
 		// number of breaks
 		int B = columns - 1;
